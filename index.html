@@ -23,7 +23,7 @@
       <p class="eyebrow">5.15 - 5.21 学习任务</p>
       <h1>我的 AI 编程学习笔记</h1>
       <p class="hero-text">
-        记录我从 0 开始学习 AI 辅助编程和网站搭建的过程，包括 GitHub、VSCode、Codex、Gemini CLI、网页开发和 GitHub Pages 部署。
+        记录我从 0 开始学习 AI 辅助编程和网站搭建的过程：先分析项目结构，再让 AI 生成本地可预览的代码文件，最后通过预览不断调整并发布到 GitHub Pages。
       </p>
       <div class="hero-actions">
         <a class="button primary" href="notes.html">查看学习笔记</a>
@@ -45,24 +45,66 @@
           <p>已经打开 VSCode，并成功运行 Gemini CLI。</p>
         </article>
         <article class="progress-card active">
-          <span>进行中</span>
-          <h3>网页代码</h3>
-          <p>正在生成首页、笔记页、关于页和样式文件。</p>
+          <span>已完成</span>
+          <h3>本地实现</h3>
+          <p>已经生成本地网页文件，并通过浏览器预览和调整。</p>
         </article>
       </div>
+    </section>
+
+    <section class="section">
+      <h2>代码本地实现流程</h2>
+      <div class="step-list">
+        <article class="step-item">
+          <span>01</span>
+          <div>
+            <h3>先分析项目结构</h3>
+            <p>明确网站需要首页、学习笔记页、关于页、统一样式和简单互动脚本，避免一开始就盲目写代码。</p>
+          </div>
+        </article>
+        <article class="step-item">
+          <span>02</span>
+          <div>
+            <h3>让 AI 生成可预览文件</h3>
+            <p>把需求交给 Codex、OpenClaw 或 Gemini，让 AI 生成可以直接本地打开的 HTML、CSS、JavaScript 文件。</p>
+          </div>
+        </article>
+        <article class="step-item">
+          <span>03</span>
+          <div>
+            <h3>本地预览并持续调整</h3>
+            <p>用浏览器打开 index.html，检查导航、内容、样式和搜索功能，再把问题反馈给 AI 继续优化。</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section prompt-panel">
+      <div>
+        <h2>我给 AI 的实现指令</h2>
+        <p>这段提示词可以直接复制给 AI 助手，用来生成或继续优化这个网站。</p>
+      </div>
+      <pre><code>请帮我实现一个静态网站，主题是「我的 AI 编程学习笔记」。
+要求：
+1. 包含首页、学习笔记页、关于页、统一样式和简单互动。
+2. 页面可以直接在本地浏览器预览。
+3. 首页展示项目结构、学习进度和本地实现流程。
+4. 笔记页记录 GitHub、OpenClaw、DeepSeek 和代码本地实现。
+5. 风格简洁清晰，适合新手学习记录。</code></pre>
     </section>
 
     <section class="section split">
       <div>
         <h2>这个网站会展示什么</h2>
         <p>
-          网站重点展示学习过程，而不是复杂特效。访问者可以看到我如何理解 AI 编程工具、如何规划网页结构，以及如何一步步把网站发布到线上。
+          网站重点展示学习过程，而不是复杂特效。访问者可以看到我如何理解 AI 编程工具、如何规划网页结构、如何进行本地代码实现，以及如何一步步把网站发布到线上。
         </p>
       </div>
       <ul class="check-list">
         <li>理解 Codex、Gemini CLI、Antigravity 的区别</li>
+        <li>配置 OpenClaw，并连接 DeepSeek V4 Flash</li>
         <li>学习 HTML、CSS、JavaScript 的基础作用</li>
-        <li>用 AI 辅助生成网页代码</li>
+        <li>用 AI 辅助生成本地可预览网页代码</li>
         <li>上传到 GitHub 并使用 GitHub Pages 发布</li>
       </ul>
     </section>
