@@ -7,30 +7,42 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="site-bg" id="siteBg" aria-hidden="true">
+    <div class="bg-grid"></div>
+    <div class="bg-scanline"></div>
+    <div class="bg-shape bg-shape-1"></div>
+    <div class="bg-shape bg-shape-2"></div>
+    <div class="bg-particles" id="bgParticles"></div>
+  </div>
+
   <header class="site-header">
     <nav class="nav">
-      <a class="brand" href="index.html">AI 编程学习笔记</a>
+      <a class="brand" href="index.html">Jason 的编程学习记录</a>
       <div class="nav-links">
         <a href="index.html">首页</a>
+        <a href="achievements.html">学习成果</a>
+        <a href="qa.html">AI 问答</a>
         <a href="notes.html">学习笔记</a>
         <a href="about.html" aria-current="page">关于</a>
       </div>
+      <button class="theme-toggle" id="themeToggle" type="button">深色</button>
     </nav>
   </header>
 
   <main>
-    <section class="page-heading">
+    <section class="page-heading reveal">
       <p class="eyebrow">About This Site</p>
-      <h1>关于这个网站</h1>
-      <p>这是我用 AI 辅助完成的第一个静态网站，用来记录学习过程、工具配置、本地实现和上线成果。</p>
+      <h1>关于 Jason 的编程学习记录</h1>
+      <p>这是 Jason 用 AI 辅助完成的个人编程学习网站，用来展示个人名片、学习成果、工具配置、本地实现和上线成果。</p>
     </section>
 
-    <section class="section split">
+    <section class="section split reveal">
       <div>
         <h2>学习目标</h2>
         <p>
           我希望通过这个项目，理解一个网站从想法到上线的基本流程：确定主题、分析结构、生成代码、本地预览、反复调整、上传 GitHub、最后使用 GitHub Pages 发布。
         </p>
+        <p>联系邮箱：<a href="mailto:fangjiaguode@gmail.com">fangjiaguode@gmail.com</a></p>
       </div>
       <div class="info-box">
         <h3>本次任务重点</h3>
@@ -38,7 +50,7 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal">
       <h2>我学到的工具</h2>
       <div class="tool-grid">
         <article>
@@ -68,7 +80,7 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal">
       <h2>本地实现检查清单</h2>
       <ul class="check-list full">
         <li>先确认项目文件包含 index.html、notes.html、about.html、style.css、script.js。</li>
@@ -78,10 +90,23 @@
         <li>发现文字或样式问题后，继续让 AI 修改并重新预览。</li>
       </ul>
     </section>
+
+    <section class="section prompt-panel reveal">
+      <div>
+        <h2>动态升级方向</h2>
+        <p>这个网站现在加入了深色模式、打字机标题、数字动效、滚动出现动画和搜索反馈，仍然可以直接用 GitHub Pages 发布。</p>
+      </div>
+      <pre><code>后续可以继续优化：
+1. 给笔记增加分类标签
+2. 增加学习时间线
+3. 增加项目截图展示区
+4. 给首页加入更多交互卡片</code></pre>
+    </section>
   </main>
 
   <footer class="site-footer">
     <p>把复杂任务拆小，一步一步完成。</p>
   </footer>
+  <script src="script.js"></script>
 </body>
 </html>
