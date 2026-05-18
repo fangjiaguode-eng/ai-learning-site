@@ -1,32 +1,32 @@
 :root {
-  --bg: #f6f7fb;
-  --surface: #ffffff;
-  --surface-strong: #edf7f5;
-  --text: #172033;
-  --muted: #5d667a;
-  --line: #d9deea;
-  --primary: #176b87;
-  --primary-dark: #0e4d64;
-  --accent: #f2b84b;
-  --warm: #dd6b4d;
-  --success: #2c8c65;
-  --shadow: 0 20px 50px rgba(23, 32, 51, 0.1);
+  --bg: #f5f0eb;
+  --surface: #faf8f5;
+  --surface-strong: #efe9e0;
+  --text: #2c241b;
+  --muted: #6b5e4f;
+  --line: #d9cfc5;
+  --primary: #a03a2e;
+  --primary-dark: #7a2b22;
+  --accent: #c69c4b;
+  --warm: #c05a3a;
+  --success: #5c8a6a;
+  --shadow: 0 20px 50px rgba(44, 36, 27, 0.1);
   --radius: 8px;
 }
 
 body.theme-dark {
-  --bg: #101418;
-  --surface: #171d23;
-  --surface-strong: #1d2b2d;
-  --text: #eef4f6;
-  --muted: #aeb9c5;
-  --line: #2c3642;
-  --primary: #57b6c9;
-  --primary-dark: #b6ecf2;
-  --accent: #ffc857;
-  --warm: #ff8a66;
-  --success: #63d39a;
-  --shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --bg: #1a1815;
+  --surface: #25221e;
+  --surface-strong: #2f2a24;
+  --text: #ece7e0;
+  --muted: #a09586;
+  --line: #3a342e;
+  --primary: #c05a3a;
+  --primary-dark: #e8a080;
+  --accent: #c69c4b;
+  --warm: #d4744a;
+  --success: #6b9e7a;
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -36,24 +36,39 @@ body.theme-dark {
 body {
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(23, 107, 135, 0.08), transparent 360px),
+    linear-gradient(180deg, rgba(160, 58, 46, 0.04), transparent 360px),
     var(--bg);
   color: var(--text);
-  font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+  font-family: "Microsoft YaHei", "PingFang SC", "KaiTi", serif, Arial, sans-serif;
   line-height: 1.7;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
+body.theme-dark {
+  background:
+    linear-gradient(180deg, rgba(192, 90, 58, 0.06), transparent 360px),
+    var(--bg);
+}
+
 .site-bg {
   background:
-    radial-gradient(circle at 20% 18%, rgba(87, 182, 201, 0.18), transparent 32%),
-    radial-gradient(circle at 80% 12%, rgba(242, 184, 75, 0.14), transparent 30%),
-    linear-gradient(135deg, rgba(23, 107, 135, 0.18), rgba(16, 20, 24, 0.02));
+    radial-gradient(circle at 20% 15%, rgba(180, 60, 60, 0.10), transparent 38%),
+    radial-gradient(circle at 80% 85%, rgba(200, 160, 60, 0.08), transparent 35%),
+    radial-gradient(circle at 50% 50%, rgba(140, 120, 80, 0.04), transparent 50%),
+    linear-gradient(180deg, rgba(240, 235, 225, 0.6), rgba(220, 210, 195, 0.3));
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   position: fixed;
   z-index: 0;
+}
+
+body.theme-dark .site-bg {
+  background:
+    radial-gradient(circle at 20% 15%, rgba(180, 60, 60, 0.12), transparent 38%),
+    radial-gradient(circle at 80% 85%, rgba(200, 160, 60, 0.07), transparent 35%),
+    radial-gradient(circle at 50% 50%, rgba(80, 70, 60, 0.08), transparent 50%),
+    linear-gradient(180deg, rgba(20, 18, 16, 0.9), rgba(16, 14, 12, 1));
 }
 
 .site-bg::after {
@@ -63,114 +78,214 @@ body {
   position: absolute;
 }
 
-.bg-grid {
-  animation: bgGridMove 18s linear infinite;
-  background-image:
-    linear-gradient(rgba(87, 182, 201, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(87, 182, 201, 0.08) 1px, transparent 1px);
-  background-size: 54px 54px;
-  inset: 0;
+/* ===== 中国风水墨晕染 ===== */
+.cn-ink {
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.35;
   position: absolute;
+  animation: cnInkFloat 12s ease-in-out infinite alternate;
 }
 
-.bg-scanline {
-  animation: bgScan 7s linear infinite;
-  background: linear-gradient(90deg, transparent, rgba(242, 184, 75, 0.32), rgba(87, 182, 201, 0.3), transparent);
-  filter: blur(1px);
-  height: 2px;
+.cn-ink-1 {
+  background: radial-gradient(circle, rgba(160, 80, 60, 0.5), transparent);
+  height: 500px;
+  left: -8%;
+  top: -10%;
+  width: 500px;
+  animation-delay: 0s;
+}
+
+.cn-ink-2 {
+  background: radial-gradient(circle, rgba(200, 170, 100, 0.35), transparent);
+  bottom: -10%;
+  height: 420px;
+  right: -8%;
+  width: 420px;
+  animation-delay: 3s;
+}
+
+.cn-ink-3 {
+  background: radial-gradient(circle, rgba(120, 100, 80, 0.25), transparent);
+  height: 350px;
+  left: 45%;
+  top: 35%;
+  width: 350px;
+  animation-delay: 6s;
+}
+
+.cn-ink-4 {
+  background: radial-gradient(circle, rgba(180, 60, 60, 0.2), transparent);
+  bottom: 20%;
+  height: 300px;
+  left: 12%;
+  width: 300px;
+  animation-delay: 9s;
+}
+
+@keyframes cnInkFloat {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  50% { transform: translate(30px, -20px) scale(1.08); opacity: 0.4; }
+  100% { transform: translate(-20px, 15px) scale(0.92); opacity: 0.3; }
+}
+
+/* ===== 祥云 ===== */
+.cn-cloud {
+  color: rgba(180, 60, 60, 0.08);
+  font-size: 80px;
+  position: absolute;
+  animation: cnCloudDrift 20s linear infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+body.theme-dark .cn-cloud {
+  color: rgba(200, 160, 100, 0.06);
+}
+
+.cn-cloud-1 {
+  left: -100px;
+  top: 12%;
+  animation-duration: 22s;
+  font-size: 70px;
+}
+
+.cn-cloud-2 {
+  left: -100px;
+  top: 45%;
+  animation-duration: 28s;
+  animation-delay: 7s;
+  font-size: 60px;
+}
+
+.cn-cloud-3 {
+  left: -100px;
+  top: 70%;
+  animation-duration: 25s;
+  animation-delay: 14s;
+  font-size: 50px;
+}
+
+@keyframes cnCloudDrift {
+  0% { transform: translateX(0) scale(1); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(calc(100vw + 200px)) scale(1); opacity: 0; }
+}
+
+/* ===== 远山剪影 ===== */
+.cn-mountains {
+  bottom: 0;
+  height: 220px;
   left: 0;
   position: absolute;
-  top: -2px;
   width: 100%;
+  animation: cnMountainPulse 8s ease-in-out infinite alternate;
 }
 
-.bg-shape {
-  animation: bgShapeRotate 26s linear infinite;
-  border: 1px solid rgba(87, 182, 201, 0.14);
+@keyframes cnMountainPulse {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+body.theme-dark .cn-mountains path:first-child {
+  fill: rgba(120, 40, 40, 0.06);
+}
+
+body.theme-dark .cn-mountains path:last-child {
+  fill: rgba(120, 40, 40, 0.035);
+}
+
+/* ===== 印章 ===== */
+.cn-seal {
+  border: 2px solid rgba(180, 60, 60, 0.12);
+  border-radius: 4px;
+  bottom: 60px;
+  color: rgba(180, 60, 60, 0.12);
+  font-family: "KaiTi", "STKaiti", "SimSun", serif;
+  font-size: 26px;
+  padding: 6px 10px;
   position: absolute;
+  right: 30px;
+  transform: rotate(-8deg);
+  transition: opacity 1s ease;
+  animation: cnSealFade 4s ease-in-out infinite alternate;
+  writing-mode: vertical-rl;
 }
 
-.bg-shape-1 {
-  border-radius: 28px;
-  height: 310px;
-  right: 8%;
-  top: 16%;
-  width: 310px;
+body.theme-dark .cn-seal {
+  border-color: rgba(200, 160, 100, 0.15);
+  color: rgba(200, 160, 100, 0.15);
 }
 
-.bg-shape-2 {
-  animation-direction: reverse;
-  border-color: rgba(242, 184, 75, 0.14);
-  border-radius: 50%;
-  bottom: 12%;
-  height: 220px;
-  left: 6%;
-  width: 220px;
+@keyframes cnSealFade {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
 }
 
-.bg-star,
+/* ===== 回纹四角装饰 ===== */
+.cn-corner {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-color: rgba(180, 60, 60, 0.1);
+  border-style: solid;
+  border-width: 0;
+}
+
+body.theme-dark .cn-corner {
+  border-color: rgba(200, 160, 100, 0.08);
+}
+
+.cn-corner-tl {
+  border-top-width: 2px;
+  border-left-width: 2px;
+  left: 20px;
+  top: 80px;
+}
+
+.cn-corner-tr {
+  border-top-width: 2px;
+  border-right-width: 2px;
+  right: 20px;
+  top: 80px;
+}
+
+.cn-corner-bl {
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+  bottom: 20px;
+  left: 20px;
+}
+
+.cn-corner-br {
+  border-bottom-width: 2px;
+  border-right-width: 2px;
+  bottom: 20px;
+  right: 20px;
+}
+
+/* ===== 粒子（墨点+金色） ===== */
 .bg-particle {
   border-radius: 50%;
   position: absolute;
-}
-
-.bg-star {
-  animation: bgTwinkle 3s ease-in-out infinite;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.bg-particle {
-  animation: bgParticleFloat linear infinite;
+  animation: cnParticleFloat linear infinite;
   bottom: -12px;
   opacity: 0;
 }
 
-@keyframes bgGridMove {
-  to {
-    transform: translateY(54px);
-  }
-}
-
-@keyframes bgScan {
-  to {
-    top: 100%;
-  }
-}
-
-@keyframes bgShapeRotate {
-  0% {
-    transform: rotate(0deg) scale(1);
-  }
-  50% {
-    transform: rotate(180deg) scale(1.06);
-  }
-  100% {
-    transform: rotate(360deg) scale(1);
-  }
-}
-
-@keyframes bgTwinkle {
-  0%,
-  100% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 0.9;
-  }
-}
-
-@keyframes bgParticleFloat {
+@keyframes cnParticleFloat {
   0% {
     opacity: 0;
-    transform: translateY(0) scale(0.6);
+    transform: translateY(0) scale(0.4) rotate(0deg);
   }
-  12%,
-  84% {
-    opacity: 0.75;
+  15%,
+  85% {
+    opacity: 0.6;
   }
   100% {
     opacity: 0;
-    transform: translateY(-100vh) scale(1);
+    transform: translateY(-100vh) scale(1.2) rotate(180deg);
   }
 }
 

@@ -151,36 +151,25 @@ counters.forEach((counter) => {
 if (siteBg && bgParticles && !siteBg.dataset.ready) {
   siteBg.dataset.ready = "true";
 
-  for (let i = 0; i < 70; i += 1) {
-    const star = document.createElement("span");
-    const size = Math.random() * 2 + 1;
-    star.className = "bg-star";
-    star.style.left = `${Math.random() * 100}%`;
-    star.style.top = `${Math.random() * 100}%`;
-    star.style.width = `${size}px`;
-    star.style.height = `${size}px`;
-    star.style.animationDelay = `${Math.random() * 3}s`;
-    star.style.animationDuration = `${Math.random() * 2 + 2}s`;
-    siteBg.appendChild(star);
-  }
-
+  // 水墨/金色/朱砂粒子
   const colors = [
-    "rgba(87, 182, 201, 0.75)",
-    "rgba(242, 184, 75, 0.72)",
-    "rgba(221, 107, 77, 0.68)",
-    "rgba(255, 255, 255, 0.72)"
+    "rgba(60, 50, 40, 0.5)",
+    "rgba(180, 60, 60, 0.5)",
+    "rgba(200, 170, 100, 0.5)",
+    "rgba(120, 100, 80, 0.4)"
   ];
 
-  for (let i = 0; i < 26; i += 1) {
+  for (let i = 0; i < 30; i += 1) {
     const particle = document.createElement("span");
-    const size = Math.random() * 4 + 2;
+    const size = Math.random() * 5 + 2;
     particle.className = "bg-particle";
     particle.style.width = `${size}px`;
     particle.style.height = `${size}px`;
     particle.style.left = `${Math.random() * 100}%`;
     particle.style.background = colors[Math.floor(Math.random() * colors.length)];
-    particle.style.animationDuration = `${Math.random() * 10 + 8}s`;
-    particle.style.animationDelay = `${Math.random() * 10}s`;
+    particle.style.borderRadius = Math.random() > 0.6 ? "2px" : "50%";
+    particle.style.animationDuration = `${Math.random() * 12 + 10}s`;
+    particle.style.animationDelay = `${Math.random() * 12}s`;
     bgParticles.appendChild(particle);
   }
 }
