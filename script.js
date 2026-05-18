@@ -151,37 +151,39 @@ counters.forEach((counter) => {
 if (siteBg && bgParticles && !siteBg.dataset.ready) {
   siteBg.dataset.ready = "true";
 
-  for (let i = 0; i < 70; i += 1) {
-    const star = document.createElement("span");
-    const size = Math.random() * 2 + 1;
-    star.className = "bg-star";
-    star.style.left = `${Math.random() * 100}%`;
-    star.style.top = `${Math.random() * 100}%`;
-    star.style.width = `${size}px`;
-    star.style.height = `${size}px`;
-    star.style.animationDelay = `${Math.random() * 3}s`;
-    star.style.animationDuration = `${Math.random() * 2 + 2}s`;
-    siteBg.appendChild(star);
-  }
-
-  const colors = [
-    "rgba(87, 182, 201, 0.75)",
-    "rgba(242, 184, 75, 0.72)",
-    "rgba(221, 107, 77, 0.68)",
-    "rgba(255, 255, 255, 0.72)"
+  const leafColors = [
+    "rgba(174, 58, 42, 0.78)",
+    "rgba(196, 108, 42, 0.76)",
+    "rgba(210, 156, 74, 0.78)",
+    "rgba(92, 44, 34, 0.7)"
   ];
 
-  for (let i = 0; i < 26; i += 1) {
+  for (let i = 0; i < 32; i += 1) {
     const particle = document.createElement("span");
-    const size = Math.random() * 4 + 2;
+    const size = Math.random() * 10 + 6;
     particle.className = "bg-particle";
     particle.style.width = `${size}px`;
-    particle.style.height = `${size}px`;
+    particle.style.height = `${Math.max(4, size * 0.48)}px`;
     particle.style.left = `${Math.random() * 100}%`;
-    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
-    particle.style.animationDuration = `${Math.random() * 10 + 8}s`;
-    particle.style.animationDelay = `${Math.random() * 10}s`;
+    particle.style.background = leafColors[Math.floor(Math.random() * leafColors.length)];
+    particle.style.borderRadius = "80% 20% 70% 30%";
+    particle.style.setProperty("--leaf-drift", `${Math.random() * 160 - 80}px`);
+    particle.style.animationDuration = `${Math.random() * 12 + 12}s`;
+    particle.style.animationDelay = `${Math.random() * 14}s`;
     bgParticles.appendChild(particle);
+  }
+
+  for (let i = 0; i < 58; i += 1) {
+    const snow = document.createElement("span");
+    const size = Math.random() * 3 + 1;
+    snow.className = "bg-snow";
+    snow.style.width = `${size}px`;
+    snow.style.height = `${size}px`;
+    snow.style.left = `${Math.random() * 100}%`;
+    snow.style.setProperty("--snow-drift", `${Math.random() * 90 - 45}px`);
+    snow.style.animationDuration = `${Math.random() * 12 + 10}s`;
+    snow.style.animationDelay = `${Math.random() * 12}s`;
+    bgParticles.appendChild(snow);
   }
 }
 
