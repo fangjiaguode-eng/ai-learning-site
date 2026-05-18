@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 问答 - Jason 的编程学习记录</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="site-bg" id="siteBg" aria-hidden="true">
+    <div class="bg-grid"></div>
+    <div class="bg-scanline"></div>
+    <div class="bg-shape bg-shape-1"></div>
+    <div class="bg-shape bg-shape-2"></div>
+    <div class="bg-particles" id="bgParticles"></div>
+  </div>
+
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html">Jason 的编程学习记录</a>
+      <div class="nav-links">
+        <a href="index.html">首页</a>
+        <a href="achievements.html">学习成果</a>
+        <a href="qa.html" aria-current="page">AI 问答</a>
+        <a href="notes.html">学习笔记</a>
+        <a href="about.html">关于</a>
+      </div>
+      <button class="theme-toggle" id="themeToggle" type="button">深色</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="page-heading reveal">
+      <p class="eyebrow">Local Knowledge Q&A</p>
+      <h1>本地知识库 AI 问答</h1>
+      <p>
+        这是一个先行版问答页面，不连接真实后端。你输入问题后，页面会根据 Jason 已整理好的学习知识库返回答案。
+      </p>
+    </section>
+
+    <section class="section qa-layout reveal">
+      <div class="qa-panel">
+        <label for="qaInput">输入你的问题</label>
+        <textarea id="qaInput" rows="5" placeholder="例如：GitHub 是什么？教学卡片 3 学到了什么？OpenClaw 有什么用？"></textarea>
+        <div class="qa-actions">
+          <button class="button primary" id="qaAsk" type="button">提问</button>
+          <button class="button secondary" id="qaClear" type="button">清空</button>
+        </div>
+      </div>
+
+      <div class="qa-answer" id="qaAnswer" aria-live="polite">
+        <p class="eyebrow">Answer</p>
+        <h2>可以先问这些问题</h2>
+        <p>点击右侧推荐问题，或直接输入关键词：GitHub、Codex、OpenClaw、DeepSeek、教学卡片 1、教学卡片 2、教学卡片 3、GitHub Pages。</p>
+      </div>
+    </section>
+
+    <section class="section reveal">
+      <div class="section-heading">
+        <p class="eyebrow">Try Questions</p>
+        <h2>推荐提问</h2>
+      </div>
+      <div class="question-grid">
+        <button type="button" data-question="GitHub 是什么？">GitHub 是什么？</button>
+        <button type="button" data-question="Codex 是什么？">Codex 是什么？</button>
+        <button type="button" data-question="OpenClaw 有什么用？">OpenClaw 有什么用？</button>
+        <button type="button" data-question="DeepSeek V4 Flash 是什么？">DeepSeek V4 Flash 是什么？</button>
+        <button type="button" data-question="教学卡片 1 学到了什么？">教学卡片 1 学到了什么？</button>
+        <button type="button" data-question="教学卡片 2 学到了什么？">教学卡片 2 学到了什么？</button>
+        <button type="button" data-question="教学卡片 3 学到了什么？">教学卡片 3 学到了什么？</button>
+        <button type="button" data-question="这个网站是怎么上线的？">这个网站是怎么上线的？</button>
+      </div>
+    </section>
+
+    <section class="section result-panel reveal">
+      <div>
+        <p class="eyebrow">Next Upgrade</p>
+        <h2>以后可以升级成真正 AI 问答</h2>
+        <p>当前版本是本地知识库匹配。下一版可以接入 HTTP 请求、RAG 知识库和提示词，让真实 AI 根据你的资料回答。</p>
+      </div>
+      <a class="button primary" href="achievements.html">查看学习成果</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Jason 的编程学习记录 · 本地知识库问答</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学习笔记 - 我的 AI 编程学习笔记</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="site-bg" id="siteBg" aria-hidden="true">
+    <div class="bg-grid"></div>
+    <div class="bg-scanline"></div>
+    <div class="bg-shape bg-shape-1"></div>
+    <div class="bg-shape bg-shape-2"></div>
+    <div class="bg-particles" id="bgParticles"></div>
+  </div>
+
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html">Jason 的编程学习记录</a>
+      <div class="nav-links">
+        <a href="index.html">首页</a>
+        <a href="achievements.html">学习成果</a>
+        <a href="qa.html">AI 问答</a>
+        <a href="notes.html" aria-current="page">学习笔记</a>
+        <a href="about.html">关于</a>
+      </div>
+      <button class="theme-toggle" id="themeToggle" type="button">深色</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="page-heading reveal">
+      <p class="eyebrow">Learning Notes</p>
+      <h1>学习笔记</h1>
+      <p>这里记录我完成 AI 网站搭建任务时，每一步学到的内容、遇到的问题和调整结果。</p>
+    </section>
+
+    <section class="section">
+      <div class="search-panel">
+        <label for="noteSearch">搜索笔记</label>
+        <input id="noteSearch" type="search" placeholder="例如：GitHub、OpenClaw、DeepSeek、本地实现">
+        <p class="search-count" id="searchCount">当前显示 7 条笔记</p>
+      </div>
+
+      <div class="note-list" id="noteList">
+        <article class="note-card reveal" data-keywords="github 仓库 代码">
+          <p class="note-date">2026-05-16</p>
+          <h2>第 1-2 步：注册 GitHub 并创建仓库</h2>
+          <p>完成 GitHub 注册/登录，并创建 ai-learning-site 仓库，为保存和发布网页做准备。</p>
+        </article>
+
+        <article class="note-card reveal" data-keywords="vscode 开发环境 编辑器">
+          <p class="note-date">2026-05-16</p>
+          <h2>第 3 步：安装并打开 VSCode</h2>
+          <p>成功打开 VSCode，开始使用代码编辑器来管理网站文件。</p>
+        </article>
+
+        <article class="note-card reveal" data-keywords="codex gemini cli antigravity ai 工具">
+          <p class="note-date">2026-05-16</p>
+          <h2>第 4 步：了解 AI 编程工具</h2>
+          <p>理解 Codex、Gemini CLI、Antigravity 的区别，并成功启动 Gemini CLI。</p>
+        </article>
+
+        <article class="note-card reveal" data-keywords="主题 网站 学习笔记">
+          <p class="note-date">2026-05-16</p>
+          <h2>第 5 步：确定网站主题</h2>
+          <p>确定网站主题为“我的 AI 编程学习笔记”，用于记录 AI 辅助建站的完整过程。</p>
+        </article>
+
+        <article class="note-card reveal" data-keywords="github 搜索 awesome star fork hellogithub">
+          <p class="note-date">2026-05-17</p>
+          <h2>学习 GitHub：搜索和收藏资源</h2>
+          <p>学会使用 awesome + 关键词搜索优质资源，理解 Repository、Star、Fork，并收藏了 awesome-gpt、Awesome-Prompt-Engineering 和 HelloGitHub。</p>
+        </article>
+
+        <article class="note-card reveal" data-keywords="openclaw deepseek api gateway dashboard">
+          <p class="note-date">2026-05-17</p>
+          <h2>配置 OpenClaw 和 DeepSeek</h2>
+          <p>安装 OpenClaw，启动 Gateway 和 Dashboard，并将模型切换为 deepseek/deepseek-v4-flash，完成网页聊天测试。</p>
+        </article>
+
+        <article class="note-card reveal" data-keywords="代码 本地实现 html css javascript codex ai">
+          <p class="note-date">2026-05-18</p>
+          <h2>代码本地实现：先分析，再生成，再调整</h2>
+          <p>按照任务要求，先分析网站结构，再让 AI 生成本地可预览文件，最后通过浏览器预览继续优化内容和样式。</p>
+        </article>
+      </div>
+      <p class="empty-state" id="emptyState" hidden>没有找到匹配笔记，换个关键词试试。</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>继续记录，慢慢完成。</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
