@@ -192,7 +192,7 @@ const localKnowledgeBase = [
     title: "GitHub 是什么？",
     keywords: ["github", "仓库", "代码", "开源", "star", "fork"],
     answer:
-      "GitHub 是一个保存代码、管理项目、查找开源资源和发布网站的平台。Jason 用 GitHub 保存 ai-learning-site 网站文件，并通过 GitHub Pages 把网站发布成可以访问的网址。"
+      "GitHub 是一个保存代码、管理项目、查找开源资源和发布网站的平台。我用 GitHub 保存 ai-learning-site 网站文件，并通过 GitHub Pages 把网站发布成可以访问的网址。"
   },
   {
     title: "Codex 是什么？",
@@ -204,19 +204,19 @@ const localKnowledgeBase = [
     title: "Gemini CLI 是什么？",
     keywords: ["gemini", "gemini cli", "命令行"],
     answer:
-      "Gemini CLI 是用命令行和 Gemini AI 对话的工具。Jason 学会了安装 Node.js、修复 PowerShell 执行策略问题，并成功启动 Gemini CLI。"
+      "Gemini CLI 是用命令行和 Gemini AI 对话的工具。我学会了安装 Node.js、修复 PowerShell 执行策略问题，并成功启动 Gemini CLI。"
   },
   {
     title: "OpenClaw 有什么用？",
     keywords: ["openclaw", "gateway", "dashboard", "网关"],
     answer:
-      "OpenClaw 是一个本地 AI 网关，可以连接不同模型提供商，并通过 Dashboard 进行聊天测试。Jason 已完成 Gateway、Dashboard 和模型配置。"
+      "OpenClaw 是一个本地 AI 网关，可以连接不同模型提供商，并通过 Dashboard 进行聊天测试。我已完成 Gateway、Dashboard 和模型配置。"
   },
   {
     title: "DeepSeek V4 Flash 是什么？",
     keywords: ["deepseek", "v4", "flash", "模型"],
     answer:
-      "DeepSeek V4 Flash 是 Jason 在 OpenClaw 中接入的 AI 模型，用来完成聊天测试和后续代码辅助。它让 OpenClaw 可以通过 API Key 调用模型回答问题。"
+      "DeepSeek V4 Flash 是我在 OpenClaw 中接入的 AI 模型，用来完成聊天测试和后续代码辅助。它让 OpenClaw 可以通过 API Key 调用模型回答问题。"
   },
   {
     title: "教学卡片 1 学到了什么？",
@@ -243,10 +243,10 @@ const localKnowledgeBase = [
       "这个网站先在本地生成 index.html、notes.html、about.html、achievements.html、qa.html、style.css 和 script.js，然后上传到 GitHub 仓库，最后用 GitHub Pages 发布上线。"
   },
   {
-    title: "Jason 的联系方式是什么？",
+    title: "我的联系方式是什么？",
     keywords: ["联系", "邮箱", "email", "jason"],
     answer:
-      "Jason 的联系邮箱是 fangjiaguode@gmail.com。这个网站是 Jason 的编程学习记录，用来展示个人名片、学习成果和项目过程。"
+      "我的联系邮箱是 fangjiaguode@gmail.com。这个网站主题是“我的 AI 学习过程”，用来展示学习成果、项目过程和 AI 工具实践。"
   }
 ];
 
