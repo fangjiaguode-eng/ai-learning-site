@@ -914,7 +914,7 @@ function renderTemplateList(){
       '<div class="template-icon">'+icon+'</div>'+
       '<div class="template-info">'+
         '<div class="template-name">'+esc(t.name)+'</div>'+
-        '<div class="template-meta">'+(t.category?'<span class="template-cat-tag">'+t.category+'</span>':'')+meta.join(' ')+'</div>'+
+        '<div class="template-meta">'+(t.category?'<span class="template-cat-tag">'+esc(t.category)+'</span>':'')+meta.join(' ')+'</div>'+
       '</div>'+
       '<div class="template-actions">'+
         '<button class="template-apply-btn" onclick="applyTemplate(\''+t.id+'\')" title="应用">✓</button>'+
@@ -1921,7 +1921,13 @@ function openHabitModal(){
 function renderEmojiPicker(){document.getElementById('emojiPicker').innerHTML=EMOJIS.map(e=>'<div class="emoji-option '+(e===selectedEmoji?'selected':'')+'" onclick="selectEmoji(\''+e+'\',this)">'+e+'</div>').join('');}
 function selectEmoji(e,el){selectedEmoji=e;document.querySelectorAll('#emojiPicker .emoji-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
 function selectPriority(el){selectedPriority=el.dataset.priority;document.querySelectorAll('.priority-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
-function closeModal(id){document.getElementById(id).classList.remove('show');}
+function closeModal(id){
+  document.getElementById(id).classList.remove('show');
+  // 关闭弹窗时重置编辑状态
+  if(id==='taskModal')editingTaskId=null;
+  if(id==='habitModal')editingHabitId=null;
+  if(id==='planModal')editingPlanId=null;
+}
 function saveTask(){
   const name=document.getElementById('taskName').value.trim();
   if(!name){alert('请输入任务名称');return;}
@@ -1940,7 +1946,12 @@ function saveHabit(){
   saveData(appData);closeModal('habitModal');render();showToast('🌟 习惯已添加');
 }
 function showCelebration(e){const el=document.createElement('div');el.className='celebration';el.textContent=e;document.body.appendChild(el);setTimeout(()=>el.remove(),1200);}
-document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
+// 使用事件委托绑定模态框点击外部关闭（兼容动态添加的弹窗）
+document.addEventListener('click',function(e){
+  if(e.target.classList&&e.target.classList.contains('modal-overlay')){
+    e.target.classList.remove('show');
+  }
+});
 
 // 全局错误处理，防止白屏
 window.addEventListener('error',function(e){
