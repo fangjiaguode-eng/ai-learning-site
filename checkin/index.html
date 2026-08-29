@@ -440,6 +440,90 @@ body.dark::before{opacity:0.3}
   to { opacity: 1; transform: translateY(0); }
 }
 
+
+/* 模板类型切换 */
+.tpl-type-switcher {
+  display: flex;
+  gap: 8px;
+}
+.tpl-type-btn {
+  flex: 1;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tpl-type-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+.tpl-type-btn:active {
+  transform: scale(0.97);
+}
+
+/* 模板预览 */
+.tpl-preview-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.tpl-preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.tpl-preview-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tpl-preview-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.tpl-preview-info {
+  flex: 1;
+  min-width: 0;
+}
+.tpl-preview-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.tpl-preview-meta {
+  font-size: 11px;
+  color: var(--text-light);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tpl-preview-tag {
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
 </style>
 </head>
 <body>
@@ -1893,26 +1977,35 @@ startReminderChecker();
 
 <!-- 模板编辑弹窗 -->
 <div class="modal-overlay" id="templateEditorModal">
-  <div class="modal">
+  <div class="modal" style="max-width:480px">
     <div class="modal-header">
       <h3 id="templateEditorTitle">新建模板</h3>
       <button class="modal-close" onclick="closeModal('templateEditorModal')">×</button>
     </div>
     <div class="modal-body">
+      <!-- 模板类型切换 -->
+      <div class="form-group">
+        <label>模板类型</label>
+        <div class="tpl-type-switcher">
+          <button class="tpl-type-btn active" data-type="task" onclick="switchTplType('task',this)">📋 任务</button>
+          <button class="tpl-type-btn" data-type="habit" onclick="switchTplType('habit',this)">🌟 习惯</button>
+          <button class="tpl-type-btn" data-type="plan" onclick="switchTplType('plan',this)">🎯 计划</button>
+        </div>
+      </div>
       <div class="form-group">
         <label>模板名称 *</label>
-        <input type="text" id="tplName" placeholder="例如：晨间阅读">
+        <input type="text" id="tplName" placeholder="例如：晨间阅读" oninput="updateTplPreview()">
       </div>
       <div class="form-group">
         <label>分类</label>
-        <input type="text" id="tplCategory" placeholder="工作/学习/生活/健康/其他" list="tplCatList">
+        <input type="text" id="tplCategory" placeholder="工作/学习/生活/健康/其他" list="tplCatList" oninput="updateTplPreview()">
         <datalist id="tplCatList">
           <option value="工作"><option value="学习"><option value="生活"><option value="健康"><option value="其他">
         </datalist>
       </div>
       <div class="form-group tpl-field tpl-habit tpl-plan">
         <label>图标 (emoji)</label>
-        <input type="text" id="tplIcon" placeholder="例如：📚 🏃 💪">
+        <input type="text" id="tplIcon" placeholder="例如：📚 🏃 💪" oninput="updateTplPreview()">
       </div>
       <div class="form-group tpl-field tpl-task">
         <label>备注</label>
@@ -1920,7 +2013,7 @@ startReminderChecker();
       </div>
       <div class="form-group tpl-field tpl-task">
         <label>优先级</label>
-        <select id="tplPriority">
+        <select id="tplPriority" onchange="updateTplPreview()">
           <option value="high">🔴 高</option>
           <option value="mid" selected>🟡 中</option>
           <option value="low">🟢 低</option>
@@ -1928,31 +2021,37 @@ startReminderChecker();
       </div>
       <div class="form-group tpl-field tpl-task">
         <label>预计时长（分钟）</label>
-        <input type="number" id="tplDuration" placeholder="例如：30" min="1">
+        <input type="number" id="tplDuration" placeholder="例如：30" min="1" oninput="updateTplPreview()">
       </div>
       <div class="form-group tpl-field tpl-task tpl-habit">
         <label>提醒时间</label>
-        <input type="time" id="tplReminder">
+        <input type="time" id="tplReminder" onchange="updateTplPreview()">
       </div>
       <div class="form-group tpl-field tpl-plan">
         <label>计划类型</label>
-        <select id="tplPlanType">
+        <select id="tplPlanType" onchange="updateTplPreview()">
           <option value="weekly" selected>周计划</option>
           <option value="monthly">月计划</option>
         </select>
       </div>
       <div class="form-group tpl-field tpl-plan">
         <label>次数目标</label>
-        <input type="number" id="tplTarget" placeholder="例如：3" min="0">
+        <input type="number" id="tplTarget" placeholder="例如：3" min="0" oninput="updateTplPreview()">
       </div>
       <div class="form-group tpl-field tpl-plan">
         <label>番茄目标</label>
-        <input type="number" id="tplPomoTarget" placeholder="例如：5" min="0">
+        <input type="number" id="tplPomoTarget" placeholder="例如：5" min="0" oninput="updateTplPreview()">
+      </div>
+      <!-- 模板预览 -->
+      <div class="tpl-preview-section">
+        <div class="tpl-preview-title">👁 应用效果预览</div>
+        <div class="tpl-preview-card" id="tplPreviewCard"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('templateEditorModal')">取消</button>
-      <button class="btn-primary" onclick="saveTemplate()">保存</button>
+      <button class="btn-mint" id="tplCloneBtn" onclick="cloneTemplate()" style="display:none">📋 克隆</button>
+      <button class="btn-primary" onclick="saveTemplate()">保存并应用</button>
     </div>
   </div>
 </div>
