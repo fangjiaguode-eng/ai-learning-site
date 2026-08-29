@@ -1248,6 +1248,38 @@ function openPlanModal(){
   document.getElementById('planModal').classList.add('show');
   playClickSound();
 }
+
+function openPlanEditor(id){
+  const p=appData.plans.find(x=>x.id===id);
+  if(!p){showToast('❌ 计划不存在');return;}
+  editingPlanId=id;
+  document.getElementById('planName').value=p.name;
+  document.getElementById('planTarget').value=p.target||'';
+  document.getElementById('planPomoTarget').value=p.pomodoroTarget||'';
+  selectedPlanType=p.type||'weekly';
+  selectedPlanEmoji=p.icon||'🎯';
+  document.querySelectorAll('[data-plan-type]').forEach(o=>o.classList.remove('selected'));
+  document.querySelector('[data-plan-type="'+selectedPlanType+'"]').classList.add('selected');
+  renderPlanEmojiPicker();renderPlanHabitsSelect();
+  if(p.linkedHabits&&p.linkedHabits.length>0){
+    document.querySelectorAll('.plan-habit-check').forEach(c=>{c.checked=p.linkedHabits.includes(c.value);});
+  }
+  document.getElementById('planSaveAsTplBtn').style.display='inline-block';
+  document.getElementById('planSaveBtn').textContent='保存修改';
+  document.getElementById('planModal').classList.add('show');
+  playClickSound();
+}
+function saveEditingPlanAsTemplate(){
+  if(!editingPlanId){showToast('❌ 请先选择要编辑的计划');return;}
+  const p=appData.plans.find(x=>x.id===editingPlanId);
+  if(!p)return;
+  const name=prompt('模板名称：',p.name);
+  if(!name)return;
+  const category=prompt('分类（工作/学习/生活/健康/其他）：','工作')||'其他';
+  appData.templates.push({id:gid(),type:'plan',name,category,icon:p.icon,planType:p.type,target:p.target||0,pomodoroTarget:p.pomodoroTarget||0,linkedHabits:p.linkedHabits||[],createdAt:Date.now()});
+  saveData(appData);showToast('📋 已保存为模板');playClickSound();
+}
+
 function renderPlanEmojiPicker(){document.getElementById('planEmojiPicker').innerHTML=EMOJIS.map(e=>'<div class="emoji-option '+(e===selectedPlanEmoji?'selected':'')+'" onclick="selectPlanEmoji(\''+e+'\',this)">'+e+'</div>').join('');}
 function selectPlanEmoji(e,el){selectedPlanEmoji=e;document.querySelectorAll('#planEmojiPicker .emoji-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
 function selectPlanType(el){selectedPlanType=el.dataset.planType;document.querySelectorAll('[data-plan-type]').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
@@ -1911,6 +1943,42 @@ function openAddModal(){
   setTimeout(()=>document.getElementById('taskName').focus(),300);
   playClickSound();
 }
+
+function openTaskEditor(id){
+  const t=appData.tasks.find(x=>x.id===id);
+  if(!t){showToast('❌ 任务不存在');return;}
+  editingTaskId=id;
+  document.getElementById('taskName').value=t.name;
+  document.getElementById('taskNote').value=t.note||'';
+  document.getElementById('taskDuration').value=t.duration||'';
+  document.getElementById('taskReminder').value=t.reminderTime||'';
+  selectedPriority=t.priority||'mid';
+  document.querySelectorAll('.priority-option').forEach(o=>o.classList.remove('selected'));
+  document.querySelector('.priority-option.'+selectedPriority).classList.add('selected');
+  document.getElementById('taskCompletedGroup').style.display='block';
+  document.querySelectorAll('[data-completed]').forEach(o=>o.classList.remove('selected'));
+  document.querySelector('[data-completed="'+t.completed+'"]').classList.add('selected');
+  document.getElementById('taskSaveAsTplBtn').style.display='inline-block';
+  document.getElementById('taskSaveBtn').textContent='保存修改';
+  document.getElementById('taskModal').classList.add('show');
+  playClickSound();
+}
+function selectTaskCompleted(el){
+  document.querySelectorAll('[data-completed]').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  playClickSound();
+}
+function saveEditingTaskAsTemplate(){
+  if(!editingTaskId){showToast('❌ 请先选择要编辑的任务');return;}
+  const t=appData.tasks.find(x=>x.id===editingTaskId);
+  if(!t)return;
+  const name=prompt('模板名称：',t.name);
+  if(!name)return;
+  const category=prompt('分类（工作/学习/生活/健康/其他）：','生活')||'其他';
+  appData.templates.push({id:gid(),type:'task',name,category,icon:'📝',note:t.note||'',priority:t.priority,duration:t.duration||null,reminderTime:t.reminderTime||null,createdAt:Date.now()});
+  saveData(appData);showToast('📋 已保存为模板');playClickSound();
+}
+
 function openHabitModal(){
   document.getElementById('habitName').value='';document.getElementById('habitReminder').value='';
   selectedEmoji='🌱';renderEmojiPicker();
@@ -1918,6 +1986,30 @@ function openHabitModal(){
   setTimeout(()=>document.getElementById('habitName').focus(),300);
   playClickSound();
 }
+
+function openHabitEditor(id){
+  const h=appData.habits.find(x=>x.id===id);
+  if(!h){showToast('❌ 习惯不存在');return;}
+  editingHabitId=id;
+  document.getElementById('habitName').value=h.name;
+  document.getElementById('habitReminder').value=h.reminderTime||'';
+  selectedEmoji=h.icon||'🌱';renderEmojiPicker();
+  document.getElementById('habitSaveAsTplBtn').style.display='inline-block';
+  document.getElementById('habitSaveBtn').textContent='保存修改';
+  document.getElementById('habitModal').classList.add('show');
+  playClickSound();
+}
+function saveEditingHabitAsTemplate(){
+  if(!editingHabitId){showToast('❌ 请先选择要编辑的习惯');return;}
+  const h=appData.habits.find(x=>x.id===editingHabitId);
+  if(!h)return;
+  const name=prompt('模板名称：',h.name);
+  if(!name)return;
+  const category=prompt('分类（工作/学习/生活/健康/其他）：','健康')||'其他';
+  appData.templates.push({id:gid(),type:'habit',name,category,icon:h.icon,reminderTime:h.reminderTime||null,createdAt:Date.now()});
+  saveData(appData);showToast('📋 已保存为模板');playClickSound();
+}
+
 function renderEmojiPicker(){document.getElementById('emojiPicker').innerHTML=EMOJIS.map(e=>'<div class="emoji-option '+(e===selectedEmoji?'selected':'')+'" onclick="selectEmoji(\''+e+'\',this)">'+e+'</div>').join('');}
 function selectEmoji(e,el){selectedEmoji=e;document.querySelectorAll('#emojiPicker .emoji-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
 function selectPriority(el){selectedPriority=el.dataset.priority;document.querySelectorAll('.priority-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
