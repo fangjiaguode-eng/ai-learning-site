@@ -267,6 +267,179 @@ body.dark::before{opacity:0.3}
   .bottom-nav{max-width:500px;left:50%;transform:translateX(-50%)}
   .fab{right:calc(50% - 234px)}
 }
+
+/* ============ 模板功能样式 ============ */
+.template-entry-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+.template-entry-btn {
+  flex: 1;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+.template-entry-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+.template-list {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.template-cats {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.template-cat-btn {
+  padding: 6px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.template-cat-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.template-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  animation: slideUp 0.3s ease both;
+  transition: all 0.2s;
+}
+.template-card:active {
+  transform: scale(0.98);
+  border-color: var(--primary);
+}
+.template-icon {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.template-info {
+  flex: 1;
+  min-width: 0;
+}
+.template-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.template-meta {
+  font-size: 11px;
+  color: var(--text-light);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.template-cat-tag {
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+.template-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.template-apply-btn, .template-edit-btn, .template-del-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.template-apply-btn {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.template-apply-btn:active {
+  background: #c8e6c9;
+}
+.template-edit-btn {
+  background: #fff3e0;
+  color: #e65100;
+}
+.template-edit-btn:active {
+  background: #ffe0b2;
+}
+.template-del-btn {
+  background: #ffebee;
+  color: #c62828;
+}
+.template-del-btn:active {
+  background: #ffcdd2;
+}
+.template-picker-modal {
+  max-width: 420px;
+}
+.modal-template-hint {
+  padding: 0 20px 12px;
+}
+.btn-template-quick {
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-template-quick:active {
+  transform: scale(0.98);
+}
+.tpl-field {
+  display: none;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 </style>
 </head>
 <body>
@@ -577,7 +750,7 @@ function loadData(){
       return p;
     }
   }catch(e){}
-  return{tasks:[],habits:[],checkins:{},plans:[],pomodoroCount:0,timerRecords:[],pomodoroRecords:[],pomodoroQueue:[],theme:'light'};
+  return{tasks:[],habits:[],checkins:{},plans:[],pomodoroCount:0,timerRecords:[],pomodoroRecords:[],pomodoroQueue:[],theme:'light',templates:[]};
 }
 function saveData(d){try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){console.warn('saveData error:',e);}}
 let appData=loadData();
@@ -615,6 +788,153 @@ function isChecked(id,s){return(getCheckins(s)).includes(id);}
 function getStreak(id){let s=0;const t=new Date();for(let i=0;i<365;i++){const d=new Date(t);d.setDate(d.getDate()-i);if(isChecked(id,fmt(d)))s++;else if(i>0)break;}return s;}
 function getTotalStreak(){if(appData.habits.length===0)return 0;let s=0;const t=new Date();for(let i=0;i<365;i++){const d=new Date(t);d.setDate(d.getDate()-i);const ds=fmt(d);if(appData.habits.every(h=>isChecked(h.id,ds)))s++;else if(i>0)break;}return s;}
 function getTodayPomoCount(){const today=fmt(new Date());return appData.pomodoroRecords.filter(r=>r.date===today).length;}
+
+
+// ============ 模板功能 ==========
+let templateModalType='task',editingTemplateId=null,templateCategoryFilter='all';
+const TEMPLATE_CATEGORIES=['工作','学习','生活','健康','其他'];
+function getTemplates(type){return appData.templates.filter(t=>!type||t.type===type);}
+function openTemplatePicker(type){
+  templateModalType=type;editingTemplateId=null;templateCategoryFilter='all';
+  renderTemplateList();
+  document.getElementById('templatePickerModal').classList.add('show');
+  playClickSound();
+}
+function renderTemplateList(){
+  const c=document.getElementById('templateList');
+  const typeLabel={task:'任务',habit:'习惯',plan:'计划'}[templateModalType];
+  let templates=getTemplates(templateModalType);
+  if(templateCategoryFilter!=='all')templates=templates.filter(t=>t.category===templateCategoryFilter);
+  const cats=['all',...new Set(getTemplates(templateModalType).map(t=>t.category||'其他'))];
+  const catHtml=cats.map(cat=>'<button class="template-cat-btn '+(templateCategoryFilter===cat?'active':'')+'" onclick="filterTemplates(\''+cat+'\')">'+(cat==='all'?'全部':cat)+'</button>').join('');
+  if(templates.length===0){
+    c.innerHTML='<div class="template-cats">'+catHtml+'</div><div class="empty-state"><div class="emoji">📋</div><p>还没有'+typeLabel+'模板<br>点击下方"新建模板"创建</p></div>';
+    return;
+  }
+  c.innerHTML='<div class="template-cats">'+catHtml+'</div>'+templates.map((t,i)=>{
+    const icon=t.icon||(t.type==='task'?'📝':t.type==='habit'?'🌱':'🎯');
+    const meta=[];
+    if(t.priority)meta.push({high:'🔴高',mid:'🟡中',low:'🟢低'}[t.priority]);
+    if(t.duration)meta.push('⏱'+t.duration+'分');
+    if(t.reminderTime)meta.push('🔔'+t.reminderTime);
+    if(t.target)meta.push('🎯'+t.target+'次');
+    if(t.pomodoroTarget)meta.push('🍅'+t.pomodoroTarget);
+    return '<div class="template-card" data-id="'+t.id+'" style="animation-delay:'+(i*0.03)+'s">'+
+      '<div class="template-icon">'+icon+'</div>'+
+      '<div class="template-info">'+
+        '<div class="template-name">'+esc(t.name)+'</div>'+
+        '<div class="template-meta">'+(t.category?'<span class="template-cat-tag">'+t.category+'</span>':'')+meta.join(' ')+'</div>'+
+      '</div>'+
+      '<div class="template-actions">'+
+        '<button class="template-apply-btn" onclick="applyTemplate(\''+t.id+'\')" title="应用">✓</button>'+
+        '<button class="template-edit-btn" onclick="editTemplate(\''+t.id+'\')" title="编辑">✏️</button>'+
+        '<button class="template-del-btn" onclick="deleteTemplate(\''+t.id+'\')" title="删除">×</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function filterTemplates(cat){templateCategoryFilter=cat;renderTemplateList();playClickSound();}
+function applyTemplate(id){
+  const t=appData.templates.find(x=>x.id===id);
+  if(!t)return;
+  if(t.type==='task'){
+    const s=currentPage==='tasks'?fmt(currentDate):fmt(new Date());
+    appData.tasks.push({id:gid(),name:t.name,note:t.note||'',priority:t.priority||'mid',duration:t.duration||null,reminderTime:t.reminderTime||null,completed:false,date:s,createdAt:Date.now()});
+    showToast('✅ 任务已添加：'+t.name);
+  }else if(t.type==='habit'){
+    appData.habits.push({id:gid(),name:t.name,icon:t.icon||'🌱',reminderTime:t.reminderTime||null,createdAt:Date.now()});
+    showToast('🌟 习惯已添加：'+t.name);
+  }else if(t.type==='plan'){
+    const now=new Date();
+    const range=t.planType==='weekly'?getWeekRange(now):getMonthRange(now);
+    appData.plans.push({id:gid(),name:t.name,type:t.planType||'weekly',target:t.target||0,pomodoroTarget:t.pomodoroTarget||0,icon:t.icon||'🎯',linkedHabits:t.linkedHabits||[],startDate:range.start,endDate:range.end,createdAt:Date.now()});
+    showToast('🎯 计划已创建：'+t.name);
+  }
+  saveData(appData);closeModal('templatePickerModal');render();playChime();vibrate(100);
+}
+function openTemplateEditor(type,id){
+  templateModalType=type||templateModalType;
+  editingTemplateId=id||null;
+  const t=id?appData.templates.find(x=>x.id===id):null;
+  document.getElementById('tplName').value=t?t.name:'';
+  document.getElementById('tplCategory').value=t?t.category||'':'';
+  document.getElementById('tplIcon').value=t?t.icon||'':'';
+  document.getElementById('tplNote').value=t?t.note||'':'';
+  document.getElementById('tplPriority').value=t?t.priority||'mid':'mid';
+  document.getElementById('tplDuration').value=(t&&t.duration)?t.duration:'';
+  document.getElementById('tplReminder').value=(t&&t.reminderTime)?t.reminderTime:'';
+  document.getElementById('tplPlanType').value=t?t.planType||'weekly':'weekly';
+  document.getElementById('tplTarget').value=(t&&t.target)?t.target:'';
+  document.getElementById('tplPomoTarget').value=(t&&t.pomodoroTarget)?t.pomodoroTarget:'';
+  // 显示/隐藏对应类型的字段
+  document.querySelectorAll('.tpl-field').forEach(f=>f.style.display='none');
+  document.querySelectorAll('.tpl-'+templateModalType).forEach(f=>f.style.display='flex');
+  document.getElementById('templateEditorTitle').textContent=(t?'编辑':'新建')+({task:'任务',habit:'习惯',plan:'计划'}[templateModalType])+'模板';
+  document.getElementById('templateEditorModal').classList.add('show');
+  playClickSound();
+}
+function editTemplate(id){const t=appData.templates.find(x=>x.id===id);if(t)openTemplateEditor(t.type,id);}
+function saveTemplate(){
+  const name=document.getElementById('tplName').value.trim();
+  if(!name){alert('请输入模板名称');return;}
+  const category=document.getElementById('tplCategory').value.trim()||'其他';
+  const icon=document.getElementById('tplIcon').value.trim();
+  const data={type:templateModalType,name,category,icon:icon||null};
+  if(templateModalType==='task'){
+    data.note=document.getElementById('tplNote').value.trim();
+    data.priority=document.getElementById('tplPriority').value;
+    data.duration=parseInt(document.getElementById('tplDuration').value)||null;
+    data.reminderTime=document.getElementById('tplReminder').value||null;
+  }else if(templateModalType==='habit'){
+    data.reminderTime=document.getElementById('tplReminder').value||null;
+  }else if(templateModalType==='plan'){
+    data.planType=document.getElementById('tplPlanType').value;
+    data.target=parseInt(document.getElementById('tplTarget').value)||0;
+    data.pomodoroTarget=parseInt(document.getElementById('tplPomoTarget').value)||0;
+  }
+  if(editingTemplateId){
+    const idx=appData.templates.findIndex(x=>x.id===editingTemplateId);
+    if(idx>-1)appData.templates[idx]={...appData.templates[idx],...data};
+    showToast('✅ 模板已更新');
+  }else{
+    data.id=gid();data.createdAt=Date.now();
+    appData.templates.push(data);
+    showToast('✅ 模板已创建');
+  }
+  saveData(appData);closeModal('templateEditorModal');renderTemplateList();playClickSound();
+}
+function deleteTemplate(id){
+  if(!confirm('确定删除这个模板吗？'))return;
+  appData.templates=appData.templates.filter(t=>t.id!==id);
+  saveData(appData);renderTemplateList();showToast('🗑 模板已删除');
+}
+function saveTaskAsTemplate(taskId){
+  const t=appData.tasks.find(x=>x.id===taskId);
+  if(!t)return;
+  const name=prompt('模板名称：',t.name);
+  if(!name)return;
+  const category=prompt('分类（工作/学习/生活/健康/其他）：','生活')||'其他';
+  appData.templates.push({id:gid(),type:'task',name,category,icon:'📝',note:t.note||'',priority:t.priority,duration:t.duration||null,reminderTime:t.reminderTime||null,createdAt:Date.now()});
+  saveData(appData);showToast('📋 已保存为模板');playClickSound();
+}
+function saveHabitAsTemplate(habitId){
+  const h=appData.habits.find(x=>x.id===habitId);
+  if(!h)return;
+  const name=prompt('模板名称：',h.name);
+  if(!name)return;
+  const category=prompt('分类（工作/学习/生活/健康/其他）：','健康')||'其他';
+  appData.templates.push({id:gid(),type:'habit',name,category,icon:h.icon,reminderTime:h.reminderTime||null,createdAt:Date.now()});
+  saveData(appData);showToast('📋 已保存为模板');playClickSound();
+}
+function savePlanAsTemplate(planId){
+  const p=appData.plans.find(x=>x.id===planId);
+  if(!p)return;
+  const name=prompt('模板名称：',p.name);
+  if(!name)return;
+  const category=prompt('分类（工作/学习/生活/健康/其他）：','工作')||'其他';
+  appData.templates.push({id:gid(),type:'plan',name,category,icon:p.icon,planType:p.type,target:p.target||0,pomodoroTarget:p.pomodoroTarget||0,linkedHabits:p.linkedHabits||[],createdAt:Date.now()});
+  saveData(appData);showToast('📋 已保存为模板');playClickSound();
+}
 
 // ============ 声音 ============
 let audioCtx=null;
@@ -1547,5 +1867,89 @@ initTheme();
 render();
 startReminderChecker();
 </script>
+
+<!-- 模板选择弹窗 -->
+<div class="modal-overlay" id="templatePickerModal">
+  <div class="modal template-picker-modal">
+    <div class="modal-header">
+      <h3>📋 选择模板</h3>
+      <button class="modal-close" onclick="closeModal('templatePickerModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="templateList" class="template-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="openTemplateEditor()">+ 新建模板</button>
+      <button class="btn-primary" onclick="closeModal('templatePickerModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 模板编辑弹窗 -->
+<div class="modal-overlay" id="templateEditorModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="templateEditorTitle">新建模板</h3>
+      <button class="modal-close" onclick="closeModal('templateEditorModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>模板名称 *</label>
+        <input type="text" id="tplName" placeholder="例如：晨间阅读">
+      </div>
+      <div class="form-group">
+        <label>分类</label>
+        <input type="text" id="tplCategory" placeholder="工作/学习/生活/健康/其他" list="tplCatList">
+        <datalist id="tplCatList">
+          <option value="工作"><option value="学习"><option value="生活"><option value="健康"><option value="其他">
+        </datalist>
+      </div>
+      <div class="form-group tpl-field tpl-habit tpl-plan">
+        <label>图标 (emoji)</label>
+        <input type="text" id="tplIcon" placeholder="例如：📚 🏃 💪">
+      </div>
+      <div class="form-group tpl-field tpl-task">
+        <label>备注</label>
+        <input type="text" id="tplNote" placeholder="任务备注（可选）">
+      </div>
+      <div class="form-group tpl-field tpl-task">
+        <label>优先级</label>
+        <select id="tplPriority">
+          <option value="high">🔴 高</option>
+          <option value="mid" selected>🟡 中</option>
+          <option value="low">🟢 低</option>
+        </select>
+      </div>
+      <div class="form-group tpl-field tpl-task">
+        <label>预计时长（分钟）</label>
+        <input type="number" id="tplDuration" placeholder="例如：30" min="1">
+      </div>
+      <div class="form-group tpl-field tpl-task tpl-habit">
+        <label>提醒时间</label>
+        <input type="time" id="tplReminder">
+      </div>
+      <div class="form-group tpl-field tpl-plan">
+        <label>计划类型</label>
+        <select id="tplPlanType">
+          <option value="weekly" selected>周计划</option>
+          <option value="monthly">月计划</option>
+        </select>
+      </div>
+      <div class="form-group tpl-field tpl-plan">
+        <label>次数目标</label>
+        <input type="number" id="tplTarget" placeholder="例如：3" min="0">
+      </div>
+      <div class="form-group tpl-field tpl-plan">
+        <label>番茄目标</label>
+        <input type="number" id="tplPomoTarget" placeholder="例如：5" min="0">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('templateEditorModal')">取消</button>
+      <button class="btn-primary" onclick="saveTemplate()">保存</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
