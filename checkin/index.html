@@ -882,6 +882,7 @@ function getTodayPomoCount(){const today=fmt(new Date());return appData.pomodoro
 
 // ============ 模板功能 ==========
 let templateModalType='task',editingTemplateId=null,templateCategoryFilter='all';
+let editingTaskId=null,editingHabitId=null,editingPlanId=null;
 const TEMPLATE_CATEGORIES=['工作','学习','生活','健康','其他'];
 function getTemplates(type){return appData.templates.filter(t=>!type||t.type===type);}
 function openTemplatePicker(type){
@@ -1716,7 +1717,7 @@ function showLongPressMenu(x,y){
       btn.addEventListener('click',()=>{
         const action=btn.dataset.action;
         closeMenu();
-        if(action==='edit'){showToast('✏️ 编辑功能开发中');}
+        if(action==='edit'){openTaskEditor(itemId);}
         else if(action==='copy'){if(task){navigator.clipboard?.writeText(task.name).catch(()=>{});showToast('📋 已复制任务名');}}
         else if(action==='delete'){deleteTask(itemId);}
       });
