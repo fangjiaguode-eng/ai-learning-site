@@ -668,9 +668,11 @@ body.dark::before{opacity:0.3}
     </div>
     <div class="form-group"><label>预计用时（分钟）</label><input type="number" id="taskDuration" placeholder="30" min="1" max="480"></div>
     <div class="form-group"><label>提醒时间（可选）</label><input type="time" id="taskReminder"></div>
+    <div class="form-group" id="taskCompletedGroup" style="display:none"><label>完成状态</label><div class="priority-selector"><div class="priority-option low" data-completed="false" onclick="selectTaskCompleted(this)">⬜ 未完成</div><div class="priority-option mid selected" data-completed="true" onclick="selectTaskCompleted(this)">✅ 已完成</div></div></div>
     <div class="btn-group">
       <button class="btn btn-secondary" onclick="closeModal('taskModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveTask()">保存</button>
+      <button class="btn btn-mint" id="taskSaveAsTplBtn" style="display:none" onclick="saveEditingTaskAsTemplate()">📋 存为模板</button>
+      <button class="btn btn-primary" id="taskSaveBtn" onclick="saveTask()">保存</button>
     </div>
   </div>
 </div>
@@ -686,7 +688,8 @@ body.dark::before{opacity:0.3}
     <div class="form-group"><label>每日提醒时间（可选）</label><input type="time" id="habitReminder"></div>
     <div class="btn-group">
       <button class="btn btn-secondary" onclick="closeModal('habitModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveHabit()">保存</button>
+      <button class="btn btn-mint" id="habitSaveAsTplBtn" style="display:none" onclick="saveEditingHabitAsTemplate()">📋 存为模板</button>
+      <button class="btn btn-primary" id="habitSaveBtn" onclick="saveHabit()">保存</button>
     </div>
   </div>
 </div>
@@ -712,7 +715,8 @@ body.dark::before{opacity:0.3}
     <div class="form-group"><label>选择图标</label><div class="emoji-picker" id="planEmojiPicker"></div></div>
     <div class="btn-group">
       <button class="btn btn-secondary" onclick="closeModal('planModal')">取消</button>
-      <button class="btn btn-primary" onclick="savePlan()">保存</button>
+      <button class="btn btn-mint" id="planSaveAsTplBtn" style="display:none" onclick="saveEditingPlanAsTemplate()">📋 存为模板</button>
+      <button class="btn btn-primary" id="planSaveBtn" onclick="savePlan()">保存</button>
     </div>
   </div>
 </div>
@@ -1231,7 +1235,10 @@ function renderPlans(){
       progressBars+='<div class="plan-progress-bar"><div class="plan-progress-fill pomo" style="width:'+pomoProg.percent+'%"></div></div>';
     }
     return '<div class="plan-card '+p.type+'" style="animation-delay:'+(i*0.05)+'s">'+
+      '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">'+
+      '<button style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(255,255,255,0.8);font-size:14px;cursor:pointer" onclick="openPlanEditor(\''+p.id+'\')" title="编辑">✏️</button>'+
       '<button class="plan-delete" onclick="deletePlan(\''+p.id+'\')">×</button>'+
+      '</div>'+
       '<div class="plan-header"><div class="plan-title">'+p.icon+' '+esc(p.name)+'</div><span class="plan-type-tag '+p.type+'">'+(p.type==='weekly'?'周计划':'月计划')+'</span></div>'+
       progressBars+
       '<div class="plan-meta"><span>'+(p.type==='weekly'?'本周':'本月')+'目标</span><span class="plan-status '+status+'">'+statusText+'</span></div>'+
@@ -1240,11 +1247,14 @@ function renderPlans(){
 }
 function switchPlanTab(tab,el){planTab=tab;document.querySelectorAll('#page-plans .tab-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderPlans();}
 function openPlanModal(){
+  editingPlanId=null;
   document.getElementById('planName').value='';document.getElementById('planTarget').value='';document.getElementById('planPomoTarget').value='';
   selectedPlanType='weekly';selectedPlanEmoji='🎯';
   document.querySelectorAll('[data-plan-type]').forEach(o=>o.classList.remove('selected'));
   document.querySelector('[data-plan-type="weekly"]').classList.add('selected');
   renderPlanEmojiPicker();renderPlanHabitsSelect();
+  document.getElementById('planSaveAsTplBtn').style.display='none';
+  document.getElementById('planSaveBtn').textContent='保存';
   document.getElementById('planModal').classList.add('show');
   playClickSound();
 }
@@ -1297,8 +1307,16 @@ function savePlan(){
   const linkedHabits=Array.from(document.querySelectorAll('.plan-habit-check:checked')).map(c=>c.value);
   const now=new Date();
   const range=selectedPlanType==='weekly'?getWeekRange(now):getMonthRange(now);
-  appData.plans.push({id:gid(),name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:Date.now()});
-  saveData(appData);closeModal('planModal');render();showToast('🎯 计划已创建');
+  if(editingPlanId){
+    appData.plans=appData.plans.filter(p=>p.id!==editingPlanId);
+    appData.plans.push({id:gid(),name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:Date.now()});
+    showToast('🎯 计划已更新');
+  }else{
+    appData.plans.push({id:gid(),name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:Date.now()});
+    showToast('🎯 计划已创建');
+  }
+  editingPlanId=null;
+  saveData(appData);closeModal('planModal');render();
 }
 function deletePlan(id){if(!confirm('确定删除这个计划吗？'))return;appData.plans=appData.plans.filter(p=>p.id!==id);saveData(appData);render();}
 
@@ -1757,19 +1775,23 @@ function showLongPressMenu(x,y){
   }else{
     const habit=appData.habits.find(h=>h.id===itemId);
     menu.innerHTML=
+      '<button data-action="edit">✏️ 编辑</button>'+
       '<button data-action="stats">📊 查看统计</button>'+
       '<button data-action="reminder">🔔 设置提醒</button>'+
+      '<button data-action="template">📋 保存为模板</button>'+
       '<button data-action="delete" style="color:#E74C3C">🗑 删除</button>';
     menu.querySelectorAll('button').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const action=btn.dataset.action;
         closeMenu();
-        if(action==='stats'){const navItems=document.querySelectorAll('.nav-item');switchPage('stats',navItems[navItems.length-1]);showToast('📊 已切换到统计页');}
+        if(action==='edit'){openHabitEditor(itemId);}
+        else if(action==='stats'){const navItems=document.querySelectorAll('.nav-item');switchPage('stats',navItems[navItems.length-1]);showToast('📊 已切换到统计页');}
         else if(action==='reminder'){
           if(!habit)return;
           const t=prompt('请输入提醒时间（格式 HH:MM，留空取消提醒）',habit.reminderTime||'08:00');
           if(t!==null){habit.reminderTime=t.trim()||null;saveData(appData);render();showToast(habit.reminderTime?'🔔 提醒已设置：'+habit.reminderTime:'🔕 提醒已取消');}
         }
+        else if(action==='template'){saveHabitAsTemplate(itemId);}
         else if(action==='delete'){deleteHabit(itemId);}
       });
     });
@@ -1934,11 +1956,15 @@ function resetDate(){currentDate=new Date();renderTasks();}
 
 // ============ 弹窗 ============
 function openAddModal(){
+  editingTaskId=null;
   document.getElementById('taskName').value='';document.getElementById('taskNote').value='';
   document.getElementById('taskDuration').value='';document.getElementById('taskReminder').value='';
   selectedPriority='mid';
   document.querySelectorAll('.priority-option').forEach(o=>o.classList.remove('selected'));
   document.querySelector('.priority-option.mid').classList.add('selected');
+  document.getElementById('taskCompletedGroup').style.display='none';
+  document.getElementById('taskSaveAsTplBtn').style.display='none';
+  document.getElementById('taskSaveBtn').textContent='保存';
   document.getElementById('taskModal').classList.add('show');
   setTimeout(()=>document.getElementById('taskName').focus(),300);
   playClickSound();
@@ -1980,8 +2006,11 @@ function saveEditingTaskAsTemplate(){
 }
 
 function openHabitModal(){
+  editingHabitId=null;
   document.getElementById('habitName').value='';document.getElementById('habitReminder').value='';
   selectedEmoji='🌱';renderEmojiPicker();
+  document.getElementById('habitSaveAsTplBtn').style.display='none';
+  document.getElementById('habitSaveBtn').textContent='保存';
   document.getElementById('habitModal').classList.add('show');
   setTimeout(()=>document.getElementById('habitName').focus(),300);
   playClickSound();
@@ -2027,15 +2056,65 @@ function saveTask(){
   const duration=parseInt(document.getElementById('taskDuration').value)||null;
   const reminderTime=document.getElementById('taskReminder').value||null;
   const s=currentPage==='tasks'?fmt(currentDate):fmt(new Date());
-  appData.tasks.push({id:gid(),name,note,priority:selectedPriority,duration,reminderTime,completed:false,date:s,createdAt:Date.now()});
-  saveData(appData);closeModal('taskModal');render();showToast('✅ 任务已添加');
+  let completed=false;
+  if(editingTaskId){
+    const selected=document.querySelector('[data-completed].selected');
+    if(selected)completed=selected.dataset.completed==='true';
+  }
+  if(editingTaskId){
+    const oldTaskId=editingTaskId;
+    const newTaskId=gid();
+    appData.tasks=appData.tasks.filter(t=>t.id!==oldTaskId);
+    appData.tasks.push({id:newTaskId,name,note,priority:selectedPriority,duration,reminderTime,completed,date:s,createdAt:Date.now()});
+    if(appData.pomodoroRecords){
+      appData.pomodoroRecords=appData.pomodoroRecords.map(r=>{
+        if(r.taskId===oldTaskId)return{...r,taskId:newTaskId,taskName:name};
+        return r;
+      });
+    }
+    if(appData.pomodoroQueue){
+      appData.pomodoroQueue=appData.pomodoroQueue.map(q=>{
+        if(q.taskId===oldTaskId)return{...q,taskId:newTaskId,name};
+        return q;
+      });
+    }
+    showToast('✅ 任务已更新');
+  }else{
+    appData.tasks.push({id:gid(),name,note,priority:selectedPriority,duration,reminderTime,completed:false,date:s,createdAt:Date.now()});
+    showToast('✅ 任务已添加');
+  }
+  editingTaskId=null;
+  saveData(appData);closeModal('taskModal');render();
 }
 function saveHabit(){
   const name=document.getElementById('habitName').value.trim();
   if(!name){alert('请输入习惯名称');return;}
   const reminderTime=document.getElementById('habitReminder').value||null;
-  appData.habits.push({id:gid(),name,icon:selectedEmoji,reminderTime,createdAt:Date.now()});
-  saveData(appData);closeModal('habitModal');render();showToast('🌟 习惯已添加');
+  if(editingHabitId){
+    const oldHabit=appData.habits.find(x=>x.id===editingHabitId);
+    appData.habits=appData.habits.filter(h=>h.id!==editingHabitId);
+    if(oldHabit){
+      const newId=gid();
+      Object.keys(appData.checkins).forEach(d=>{
+        if(appData.checkins[d].includes(oldHabit.id)){
+          appData.checkins[d]=appData.checkins[d].map(x=>x===oldHabit.id?newId:x);
+        }
+      });
+      appData.plans=appData.plans.map(p=>{
+        if(p.linkedHabits&&p.linkedHabits.includes(oldHabit.id)){
+          return{...p,linkedHabits:p.linkedHabits.map(id=>id===oldHabit.id?newId:id)};
+        }
+        return p;
+      });
+      appData.habits.push({id:newId,name,icon:selectedEmoji,reminderTime,createdAt:Date.now()});
+    }
+    showToast('🌟 习惯已更新');
+  }else{
+    appData.habits.push({id:gid(),name,icon:selectedEmoji,reminderTime,createdAt:Date.now()});
+    showToast('🌟 习惯已添加');
+  }
+  editingHabitId=null;
+  saveData(appData);closeModal('habitModal');render();
 }
 function showCelebration(e){const el=document.createElement('div');el.className='celebration';el.textContent=e;document.body.appendChild(el);setTimeout(()=>el.remove(),1200);}
 // 使用事件委托绑定模态框点击外部关闭（兼容动态添加的弹窗）
