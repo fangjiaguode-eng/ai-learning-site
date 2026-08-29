@@ -506,6 +506,7 @@ body.dark::before{opacity:0.3}
     <div class="current-date" id="tasksDate" onclick="resetDate()">今天</div>
     <button onclick="changeDate(1)">›</button>
   </div>
+  <div class="template-entry-bar"><button class="template-entry-btn" onclick="openTemplatePicker('task')">📋 从模板添加任务</button></div>
   <div id="tasksList"></div>
 </div>
 
@@ -516,6 +517,7 @@ body.dark::before{opacity:0.3}
     <button class="tab-btn" onclick="switchPlanTab('weekly',this)">周计划</button>
     <button class="tab-btn" onclick="switchPlanTab('monthly',this)">月计划</button>
   </div>
+  <div class="template-entry-bar"><button class="template-entry-btn" onclick="openTemplatePicker('plan')">📋 从模板添加计划</button></div>
   <div id="plansList"></div>
 </div>
 
@@ -527,6 +529,7 @@ body.dark::before{opacity:0.3}
     <div style="font-size:11px;color:var(--text-light)">每天进步一点点，遇见更好的自己</div>
   </div>
   <div class="section-title"><span class="emoji">⭐</span>我的习惯</div>
+  <div class="template-entry-bar"><button class="template-entry-btn" onclick="openTemplatePicker('habit')">📋 从模板添加习惯</button></div>
   <div class="habit-grid" id="habitsGrid"></div>
 </div>
 
@@ -569,6 +572,7 @@ body.dark::before{opacity:0.3}
   <div class="modal">
     <div class="modal-handle"></div>
     <h2>添加任务</h2>
+    <div class="modal-template-hint"><button class="btn-template-quick" onclick="closeModal('taskModal');openTemplatePicker('task')">📋 从模板快速添加</button></div>
     <div class="form-group"><label>任务名称</label><input type="text" id="taskName" placeholder="例如：阅读30分钟" maxlength="50"></div>
     <div class="form-group"><label>备注（可选）</label><textarea id="taskNote" placeholder="写点什么..." maxlength="200"></textarea></div>
     <div class="form-group"><label>优先级</label>
@@ -592,6 +596,7 @@ body.dark::before{opacity:0.3}
   <div class="modal">
     <div class="modal-handle"></div>
     <h2>添加习惯</h2>
+    <div class="modal-template-hint"><button class="btn-template-quick" onclick="closeModal('habitModal');openTemplatePicker('habit')">📋 从模板快速添加</button></div>
     <div class="form-group"><label>习惯名称</label><input type="text" id="habitName" placeholder="例如：早起喝水" maxlength="20"></div>
     <div class="form-group"><label>选择图标</label><div class="emoji-picker" id="emojiPicker"></div></div>
     <div class="form-group"><label>每日提醒时间（可选）</label><input type="time" id="habitReminder"></div>
@@ -607,6 +612,7 @@ body.dark::before{opacity:0.3}
   <div class="modal">
     <div class="modal-handle"></div>
     <h2>添加计划</h2>
+    <div class="modal-template-hint"><button class="btn-template-quick" onclick="closeModal('planModal');openTemplatePicker('plan')">📋 从模板快速添加</button></div>
     <div class="form-group"><label>计划类型</label>
       <div class="priority-selector">
         <div class="priority-option mid selected" data-plan-type="weekly" onclick="selectPlanType(this)">📅 周计划</div>
