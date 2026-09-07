@@ -529,6 +529,7 @@ body.dark::before{opacity:0.3}
 <body>
 
 <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切换主题">🌙</button>
+<button class="theme-toggle" onclick="openDataManager()" title="数据管理" style="right:56px">💾</button>
 
 <div class="timer-bar" id="timerBar">
   <span id="timerBarLabel">⏱ 计时中</span>
@@ -668,9 +669,11 @@ body.dark::before{opacity:0.3}
     </div>
     <div class="form-group"><label>预计用时（分钟）</label><input type="number" id="taskDuration" placeholder="30" min="1" max="480"></div>
     <div class="form-group"><label>提醒时间（可选）</label><input type="time" id="taskReminder"></div>
+    <div class="form-group" id="taskCompletedGroup" style="display:none"><label>完成状态</label><div class="priority-selector"><div class="priority-option low" data-completed="false" onclick="selectTaskCompleted(this)">⬜ 未完成</div><div class="priority-option mid selected" data-completed="true" onclick="selectTaskCompleted(this)">✅ 已完成</div></div></div>
     <div class="btn-group">
       <button class="btn btn-secondary" onclick="closeModal('taskModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveTask()">保存</button>
+      <button class="btn btn-mint" id="taskSaveAsTplBtn" style="display:none" onclick="saveEditingTaskAsTemplate()">📋 存为模板</button>
+      <button class="btn btn-primary" id="taskSaveBtn" onclick="saveTask()">保存</button>
     </div>
   </div>
 </div>
@@ -686,7 +689,8 @@ body.dark::before{opacity:0.3}
     <div class="form-group"><label>每日提醒时间（可选）</label><input type="time" id="habitReminder"></div>
     <div class="btn-group">
       <button class="btn btn-secondary" onclick="closeModal('habitModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveHabit()">保存</button>
+      <button class="btn btn-mint" id="habitSaveAsTplBtn" style="display:none" onclick="saveEditingHabitAsTemplate()">📋 存为模板</button>
+      <button class="btn btn-primary" id="habitSaveBtn" onclick="saveHabit()">保存</button>
     </div>
   </div>
 </div>
@@ -712,7 +716,19 @@ body.dark::before{opacity:0.3}
     <div class="form-group"><label>选择图标</label><div class="emoji-picker" id="planEmojiPicker"></div></div>
     <div class="btn-group">
       <button class="btn btn-secondary" onclick="closeModal('planModal')">取消</button>
-      <button class="btn btn-primary" onclick="savePlan()">保存</button>
+      <button class="btn btn-mint" id="planSaveAsTplBtn" style="display:none" onclick="saveEditingPlanAsTemplate()">📋 存为模板</button>
+      <button class="btn btn-primary" id="planSaveBtn" onclick="savePlan()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 计划进度详情弹窗 -->
+<div class="modal-overlay" id="planProgressModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="planProgressContent"></div>
+    <div class="btn-group" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="closeModal('planProgressModal')">关闭</button>
     </div>
   </div>
 </div>
@@ -825,24 +841,170 @@ body.dark::before{opacity:0.3}
 
 <script>
 // ============ 数据存储 ============
-const SK='daily_checkin_data_v4';
+const SK='daily_checkin_data_v5';
+const DATA_VERSION=5;
+const BACKUP_KEY='daily_checkin_backups';
 function loadData(){
   try{
-    const d=localStorage.getItem(SK);
+    let d=localStorage.getItem(SK);
+    let p=null;
     if(d){
-      const p=JSON.parse(d);
+      p=JSON.parse(d);
+    }else{
+      const oldKeys=['daily_checkin_data_v4','daily_checkin_data_v3','daily_checkin_data_v2','daily_checkin_data'];
+      for(const oldKey of oldKeys){
+        const oldData=localStorage.getItem(oldKey);
+        if(oldData){
+          p=JSON.parse(oldData);
+          console.log('🔄 检测到旧版本数据，正在迁移:',oldKey);
+          break;
+        }
+      }
+    }
+    if(p){
+      // 版本变化时先自动备份再迁移
+      if(p.dataVersion&&p.dataVersion!==DATA_VERSION){
+        console.log('🔄 检测到数据版本变化 v'+p.dataVersion+' → v'+DATA_VERSION+'，先备份再迁移');
+        try{
+          let backups=[];
+          try{backups=JSON.parse(localStorage.getItem(BACKUP_KEY)||'[]');}catch(e){backups=[];}
+          backups.push({date:fmt(new Date()),timestamp:Date.now(),data:JSON.parse(JSON.stringify(p)),note:'版本更新前自动备份 v'+p.dataVersion});
+          backups=backups.slice(-30);
+          localStorage.setItem(BACKUP_KEY,JSON.stringify(backups));
+          console.log('💾 版本更新前备份完成');
+        }catch(e){console.error('版本更新前备份失败:',e);}
+      }
+      if(!p.tasks)p.tasks=[];
+      if(!p.habits)p.habits=[];
+      if(!p.checkins)p.checkins={};
       if(!p.pomodoroRecords)p.pomodoroRecords=[];
       if(!p.pomodoroQueue)p.pomodoroQueue=[];
       if(!p.plans)p.plans=[];
       if(!p.pomodoroCount)p.pomodoroCount=0;
       if(!p.timerRecords)p.timerRecords=[];
       if(!p.theme)p.theme='light';
+      if(!p.templates)p.templates=[];
+      p.dataVersion=DATA_VERSION;
+      if(!p.lastBackup)p.lastBackup=null;
+      saveData(p);
       return p;
     }
-  }catch(e){}
-  return{tasks:[],habits:[],checkins:{},plans:[],pomodoroCount:0,timerRecords:[],pomodoroRecords:[],pomodoroQueue:[],theme:'light',templates:[]};
+  }catch(e){console.error('loadData error:',e);}
+  return{tasks:[],habits:[],checkins:{},plans:[],pomodoroCount:0,timerRecords:[],pomodoroRecords:[],pomodoroQueue:[],theme:'light',templates:[],dataVersion:DATA_VERSION,lastBackup:null};
 }
 function saveData(d){try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){console.warn('saveData error:',e);}}
+
+// ============ 数据备份与恢复 ============
+function autoBackup(){
+  try{
+    const today=fmt(new Date());
+    if(appData.lastBackup===today)return;
+    let backups=[];
+    try{backups=JSON.parse(localStorage.getItem(BACKUP_KEY)||'[]');}catch(e){backups=[];}
+    const backup={date:today,timestamp:Date.now(),data:JSON.parse(JSON.stringify(appData))};
+    backups.push(backup);
+    // 保留最近30个备份（约1个月）
+    backups=backups.slice(-30);
+    localStorage.setItem(BACKUP_KEY,JSON.stringify(backups));
+    appData.lastBackup=today;
+    saveData(appData);
+    console.log('💾 自动备份完成，共',backups.length,'个备份');
+  }catch(e){console.error('autoBackup error:',e);}
+}
+function exportDataJSON(){
+  const exportData={exportTime:new Date().toISOString(),appVersion:DATA_VERSION,data:appData};
+  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='打卡数据备份_'+fmt(new Date())+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📦 JSON 备份已下载');playClickSound();
+}
+function exportFullBackup(){
+  exportDataJSON();
+  setTimeout(()=>exportDataMarkdown(),500);
+  showToast('📦 完整备份已下载（JSON + MD）');
+}
+
+function exportDataMarkdown(){
+  const md=generateExportContent(true);
+  const blob=new Blob([md],{type:'text/markdown;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='打卡记录_'+fmt(new Date())+'.md';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📝 Markdown 备份已下载');playClickSound();
+}
+function importDataJSON(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const imported=JSON.parse(e.target.result);
+      const data=imported.data||imported;
+      if(!data.tasks&&!data.habits){alert('❌ 文件格式不正确');return;}
+      const taskCount=data.tasks?data.tasks.length:0;
+      const habitCount=data.habits?data.habits.length:0;
+      const planCount=data.plans?data.plans.length:0;
+      const pomoCount=data.pomodoroRecords?data.pomodoroRecords.length:0;
+      if(!confirm('⚠️ 导入将覆盖当前所有数据！\n\n📊 备份数据概览：\n- 任务：'+taskCount+' 条\n- 习惯：'+habitCount+' 个\n- 计划：'+planCount+' 个\n- 番茄记录：'+pomoCount+' 条\n\n确定继续吗？'))return;
+      if(!data.pomodoroRecords)data.pomodoroRecords=[];
+      if(!data.pomodoroQueue)data.pomodoroQueue=[];
+      if(!data.plans)data.plans=[];
+      if(!data.templates)data.templates=[];
+      if(!data.theme)data.theme='light';
+      data.dataVersion=DATA_VERSION;
+      appData=data;saveData(appData);render();
+      showToast('✅ 数据导入成功');playChime();
+    }catch(err){alert('❌ 导入失败：文件格式错误');console.error(err);}
+  };
+  reader.readAsText(file);
+}
+function listBackups(){
+  try{return JSON.parse(localStorage.getItem(BACKUP_KEY)||'[]').sort((a,b)=>b.timestamp-a.timestamp);}catch(e){return[];}
+}
+function restoreBackup(date){
+  const backups=listBackups();
+  const backup=backups.find(b=>b.date===date);
+  if(!backup){alert('❌ 未找到该备份');return;}
+  if(!confirm('⚠️ 恢复备份将覆盖当前所有数据，确定恢复到 '+date+' 的数据吗？'))return;
+  appData=JSON.parse(JSON.stringify(backup.data));
+  saveData(appData);render();
+  showToast('✅ 已恢复到 '+date+' 的备份');playChime();
+}
+function deleteBackup(date){
+  if(!confirm('确定删除 '+date+' 的备份吗？'))return;
+  let backups=listBackups();
+  backups=backups.filter(b=>b.date!==date);
+  localStorage.setItem(BACKUP_KEY,JSON.stringify(backups));
+  showToast('🗑 备份已删除');renderBackupList();
+}
+function renderBackupList(){
+  const container=document.getElementById('backupList');
+  if(!container)return;
+  const backups=listBackups();
+  if(backups.length===0){
+    container.innerHTML='<div style="text-align:center;color:var(--text-light);padding:20px">暂无自动备份<br><span style="font-size:12px">每天首次打开应用时会自动备份</span></div>';
+    return;
+  }
+  container.innerHTML=backups.map(b=>{
+    const d=new Date(b.timestamp);
+    const timeStr=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">'+
+      '<div><div style="font-weight:600">'+b.date+'</div><div style="font-size:12px;color:var(--text-light)">'+timeStr+' 自动备份</div></div>'+
+      '<div style="display:flex;gap:8px">'+
+      '<button onclick="restoreBackup(\''+b.date+'\')" style="padding:6px 12px;border:none;border-radius:6px;background:var(--primary);color:white;cursor:pointer;font-size:12px">恢复</button>'+
+      '<button onclick="deleteBackup(\''+b.date+'\')" style="padding:6px 12px;border:none;border-radius:6px;background:#E74C3C;color:white;cursor:pointer;font-size:12px">删除</button>'+
+      '</div></div>';
+  }).join('');
+}
+function openDataManager(){
+  renderBackupList();
+  document.getElementById('dataManagerModal').classList.add('show');
+  playClickSound();
+}
+
 let appData=loadData();
 let currentPage='home',currentDate=new Date(),selectedPriority='mid',selectedEmoji='🌱',selectedPlanType='weekly',selectedPlanEmoji='🎯',planTab='all',statsTab='week';
 const EMOJIS=['🌱','💧','🏃','📚','🧘','💪','🥗','😴','✍️','🎯','☀️','🌙','🧹','💊','🎨','🎵','🚰','🦷','🙏','📝','🍎','🚶','🧠','❤️','🌟','🔥','💯','🌈','🍀','☕','🏋️','🚴','🛌','💻','🎸'];
@@ -1017,15 +1179,6 @@ function saveHabitAsTemplate(habitId){
   appData.templates.push({id:gid(),type:'habit',name,category,icon:h.icon,reminderTime:h.reminderTime||null,createdAt:Date.now()});
   saveData(appData);showToast('📋 已保存为模板');playClickSound();
 }
-function savePlanAsTemplate(planId){
-  const p=appData.plans.find(x=>x.id===planId);
-  if(!p)return;
-  const name=prompt('模板名称：',p.name);
-  if(!name)return;
-  const category=prompt('分类（工作/学习/生活/健康/其他）：','工作')||'其他';
-  appData.templates.push({id:gid(),type:'plan',name,category,icon:p.icon,planType:p.type,target:p.target||0,pomodoroTarget:p.pomodoroTarget||0,linkedHabits:p.linkedHabits||[],createdAt:Date.now()});
-  saveData(appData);showToast('📋 已保存为模板');playClickSound();
-}
 
 // ============ 声音 ============
 let audioCtx=null;
@@ -1184,7 +1337,7 @@ function calcPlanProgress(plan){
   return{current:Math.min(current,target),target,percent:target>0?Math.min(100,Math.round(current/target*100)):0};
 }
 function calcPlanPomoProgress(plan){
-  const records=appData.pomodoroRecords.filter(r=>r.planId===plan.id);
+  const records=appData.pomodoroRecords.filter(r=>r.planId===plan.id&&r.date>=plan.startDate&&r.date<=plan.endDate);
   const current=records.length;
   const target=plan.pomodoroTarget||0;
   return{current,target,percent:target>0?Math.min(100,Math.round(current/target*100)):0};
@@ -1199,7 +1352,7 @@ function getPlanStatus(plan){
   if(!hasTarget){if(now>end)return'urgent';return'on-track';}
   if(now>end)return'urgent';
   const totalDays=Math.ceil((end-start)/(1000*60*60*24))+1;
-  const elapsedDays=Math.ceil((now-start)/(1000*60*60*24))+1;
+  const elapsedDays=Math.floor((now-start)/(1000*60*60*24))+1;
   const expectedCount=(elapsedDays/totalDays);
   const taskRate=prog.target>0?prog.current/prog.target:1;
   const pomoRate=pomoProg.target>0?pomoProg.current/pomoProg.target:1;
@@ -1230,8 +1383,11 @@ function renderPlans(){
       progressBars+='<div style="font-size:10px;color:var(--primary);margin-top:4px">🍅 番茄 '+pomoProg.current+'/'+p.pomodoroTarget+'</div>';
       progressBars+='<div class="plan-progress-bar"><div class="plan-progress-fill pomo" style="width:'+pomoProg.percent+'%"></div></div>';
     }
-    return '<div class="plan-card '+p.type+'" style="animation-delay:'+(i*0.05)+'s">'+
+    return '<div class="plan-card '+p.type+'" data-id="'+p.id+'" style="animation-delay:'+(i*0.05)+'s">'+
+      '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">'+
+      '<button style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(255,255,255,0.8);font-size:14px;cursor:pointer" onclick="openPlanEditor(\''+p.id+'\')" title="编辑">✏️</button>'+
       '<button class="plan-delete" onclick="deletePlan(\''+p.id+'\')">×</button>'+
+      '</div>'+
       '<div class="plan-header"><div class="plan-title">'+p.icon+' '+esc(p.name)+'</div><span class="plan-type-tag '+p.type+'">'+(p.type==='weekly'?'周计划':'月计划')+'</span></div>'+
       progressBars+
       '<div class="plan-meta"><span>'+(p.type==='weekly'?'本周':'本月')+'目标</span><span class="plan-status '+status+'">'+statusText+'</span></div>'+
@@ -1240,11 +1396,14 @@ function renderPlans(){
 }
 function switchPlanTab(tab,el){planTab=tab;document.querySelectorAll('#page-plans .tab-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderPlans();}
 function openPlanModal(){
+  editingPlanId=null;
   document.getElementById('planName').value='';document.getElementById('planTarget').value='';document.getElementById('planPomoTarget').value='';
   selectedPlanType='weekly';selectedPlanEmoji='🎯';
   document.querySelectorAll('[data-plan-type]').forEach(o=>o.classList.remove('selected'));
   document.querySelector('[data-plan-type="weekly"]').classList.add('selected');
   renderPlanEmojiPicker();renderPlanHabitsSelect();
+  document.getElementById('planSaveAsTplBtn').style.display='none';
+  document.getElementById('planSaveBtn').textContent='保存';
   document.getElementById('planModal').classList.add('show');
   playClickSound();
 }
@@ -1297,9 +1456,80 @@ function savePlan(){
   const linkedHabits=Array.from(document.querySelectorAll('.plan-habit-check:checked')).map(c=>c.value);
   const now=new Date();
   const range=selectedPlanType==='weekly'?getWeekRange(now):getMonthRange(now);
-  appData.plans.push({id:gid(),name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:Date.now()});
-  saveData(appData);closeModal('planModal');render();showToast('🎯 计划已创建');
+  if(editingPlanId){
+    const idx=appData.plans.findIndex(p=>p.id===editingPlanId);
+    const oldPlan=idx>=0?appData.plans[idx]:null;
+    // 保留原有 planId，确保番茄钟记录不丢失；使用 splice 保持原位置不变
+    // 修改类型或目标时，次数进度会因周期变化自动重新计算
+    const updatedPlan={id:editingPlanId,name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:oldPlan?oldPlan.createdAt:Date.now()};
+    if(idx>=0){appData.plans.splice(idx,1,updatedPlan);}else{appData.plans.push(updatedPlan);}
+    showToast('🎯 计划已更新');
+  }else{
+    appData.plans.push({id:gid(),name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:Date.now()});
+    showToast('🎯 计划已创建');
+  }
+  editingPlanId=null;
+  saveData(appData);closeModal('planModal');render();
 }
+function savePlanAsTemplate(id){
+  const p=appData.plans.find(x=>x.id===id);
+  if(!p){showToast('❌ 计划不存在');return;}
+  const name=prompt('模板名称：',p.name);
+  if(!name)return;
+  const category=prompt('分类（工作/学习/生活/健康/其他）：','工作')||'其他';
+  appData.templates.push({id:gid(),type:'plan',name,category,icon:p.icon,planType:p.type,target:p.target||0,pomodoroTarget:p.pomodoroTarget||0,linkedHabits:p.linkedHabits||[],createdAt:Date.now()});
+  saveData(appData);showToast('📋 已保存为模板');playClickSound();
+}
+
+function showPlanProgressDetail(id){
+  const p=appData.plans.find(x=>x.id===id);
+  if(!p){showToast('❌ 计划不存在');return;}
+  const prog=calcPlanProgress(p);
+  const pomoProg=calcPlanPomoProgress(p);
+  const status=getPlanStatus(p);
+  const statusText={'on-track':'✅ 进行中','behind':'⚠️ 进度落后','urgent':'🔥 即将到期','done':'🎉 已完成'}[status];
+  const start=parseDate(p.startDate),end=parseDate(p.endDate);
+  const now=new Date();
+  const totalDays=Math.ceil((end-start)/(1000*60*60*24))+1;
+  const elapsedDays=Math.max(0,Math.floor((now-start)/(1000*60*60*24))+1);
+  const daysLeft=Math.max(0,Math.ceil((end-now)/(1000*60*60*24)));
+  let habitRows='';
+  if(p.linkedHabits&&p.linkedHabits.length>0){
+    p.linkedHabits.forEach(hid=>{
+      const h=appData.habits.find(x=>x.id===hid);
+      if(h){
+        let count=0;
+        for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+          if(isChecked(hid,fmt(d)))count++;
+        }
+        habitRows+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>'+h.icon+' '+esc(h.name)+'</span><span style="font-weight:600">'+count+' 次</span></div>';
+      }
+    });
+  }
+  const timePercent=Math.min(100,Math.round(elapsedDays/totalDays*100));
+  const content='<div style="text-align:center;margin-bottom:16px"><div style="font-size:28px;margin-bottom:6px">'+p.icon+'</div><div style="font-size:17px;font-weight:600">'+esc(p.name)+'</div><div style="font-size:13px;color:var(--text-light);margin-top:4px">'+statusText+'</div></div>'+
+    '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:12px">'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px">📅 周期</div>'+
+    '<div style="font-size:13px;margin-bottom:8px">'+p.startDate+' 至 '+p.endDate+'</div>'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:4px">时间进度：已过 '+elapsedDays+' / '+totalDays+' 天，剩余 '+daysLeft+' 天</div>'+
+    '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+timePercent+'%;background:var(--primary);border-radius:3px"></div></div>'+
+    '</div>'+
+    '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:12px">'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🎯 次数目标</div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>已完成</span><span style="font-weight:600">'+prog.current+' / '+(p.target>0?p.target+' 次':'未设置')+'</span></div>'+
+    (p.target>0?'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+prog.percent+'%;background:#7EC8A8;border-radius:3px"></div></div><div style="font-size:11px;color:var(--text-light);margin-top:4px;text-align:right">'+prog.percent+'%</div>':'<div style="font-size:11px;color:var(--text-light)">未设置次数目标</div>')+
+    '</div>'+
+    '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:12px">'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🍅 番茄目标</div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>已完成</span><span style="font-weight:600">'+pomoProg.current+' / '+(p.pomodoroTarget>0?p.pomodoroTarget+' 个':'未设置')+'</span></div>'+
+    (p.pomodoroTarget>0?'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pomoProg.percent+'%;background:var(--primary);border-radius:3px"></div></div><div style="font-size:11px;color:var(--text-light);margin-top:4px;text-align:right">'+pomoProg.percent+'%</div>':'<div style="font-size:11px;color:var(--text-light)">未设置番茄目标</div>')+
+    '</div>'+
+    (habitRows?'<div style="background:var(--bg);border-radius:12px;padding:12px"><div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🔗 关联习惯打卡明细</div>'+habitRows+'</div>':'');
+  document.getElementById('planProgressContent').innerHTML=content;
+  document.getElementById('planProgressModal').classList.add('show');
+  playClickSound();
+}
+
 function deletePlan(id){if(!confirm('确定删除这个计划吗？'))return;appData.plans=appData.plans.filter(p=>p.id!==id);saveData(appData);render();}
 
 // ============ 数据导出 ============
@@ -1308,8 +1538,8 @@ function openExportModal(){
   document.getElementById('exportPreview').textContent='点击下方"生成预览"查看';
   playClickSound();
 }
-function generateExportContent(){
-  const checks=Array.from(document.querySelectorAll('.export-check:checked')).map(c=>c.value);
+function generateExportContent(forceAll){
+  const checks=forceAll?['tasks','habits','plans','pomodoro']:Array.from(document.querySelectorAll('.export-check:checked')).map(c=>c.value);
   const today=fmt(new Date());
   let md='# 📊 每日打卡数据导出\n\n';
   md+='> 导出时间：'+new Date().toLocaleString('zh-CN')+'\n\n';
@@ -1719,19 +1949,38 @@ document.addEventListener('touchend',e=>{
 },{passive:true});
 
 // 长按菜单
-let longPressTimer=null,longPressTarget=null;
+let longPressTimer=null,longPressTarget=null,longPressFired=false;
 document.addEventListener('touchstart',e=>{
   const taskItem=e.target.closest('.task-item');
   const habitCard=e.target.closest('.habit-card');
-  if(taskItem||habitCard){
-    longPressTarget=taskItem||habitCard;
-    longPressTimer=setTimeout(()=>showLongPressMenu(e.touches[0].clientX,e.touches[0].clientY),500);
+  const planCard=e.target.closest('.plan-card');
+  if(taskItem||habitCard||planCard){
+    longPressTarget=taskItem||habitCard||planCard;
+    longPressTimer=setTimeout(()=>{longPressFired=true;showLongPressMenu(e.touches[0].clientX,e.touches[0].clientY);},500);
   }
 },{passive:true});
 document.addEventListener('touchend',()=>{if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}});
 document.addEventListener('touchmove',()=>{if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}});
+// 桌面端鼠标长按支持
+document.addEventListener('mousedown',e=>{
+  if(e.button!==0)return;
+  if(e.target.closest('button'))return;
+  const taskItem=e.target.closest('.task-item');
+  const habitCard=e.target.closest('.habit-card');
+  const planCard=e.target.closest('.plan-card');
+  if(taskItem||habitCard||planCard){
+    longPressFired=false;
+    longPressTarget=taskItem||habitCard||planCard;
+    longPressTimer=setTimeout(()=>{longPressFired=true;showLongPressMenu(e.clientX,e.clientY);},500);
+  }
+});
+document.addEventListener('mouseup',()=>{if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}});
+document.addEventListener('mousemove',()=>{if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}});
+// 防止长按后立即触发点击事件
+document.addEventListener('click',e=>{if(longPressFired){if(!e.target.closest('.long-press-menu')){e.preventDefault();e.stopPropagation();document.querySelectorAll('.long-press-menu').forEach(m=>m.remove());}longPressFired=false;}},true);
 function showLongPressMenu(x,y){
   playClickSound();
+  document.querySelectorAll('.long-press-menu').forEach(m=>m.remove());
   const menu=document.createElement('div');
   menu.className='long-press-menu';
   menu.style.left=Math.min(x,window.innerWidth-160)+'px';
@@ -1754,27 +2003,54 @@ function showLongPressMenu(x,y){
         else if(action==='delete'){deleteTask(itemId);}
       });
     });
-  }else{
+  }else if(longPressTarget.classList.contains('habit-card')){
     const habit=appData.habits.find(h=>h.id===itemId);
     menu.innerHTML=
+      '<button data-action="edit">✏️ 编辑</button>'+
       '<button data-action="stats">📊 查看统计</button>'+
       '<button data-action="reminder">🔔 设置提醒</button>'+
+      '<button data-action="template">📋 保存为模板</button>'+
       '<button data-action="delete" style="color:#E74C3C">🗑 删除</button>';
     menu.querySelectorAll('button').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const action=btn.dataset.action;
         closeMenu();
-        if(action==='stats'){const navItems=document.querySelectorAll('.nav-item');switchPage('stats',navItems[navItems.length-1]);showToast('📊 已切换到统计页');}
+        if(action==='edit'){openHabitEditor(itemId);}
+        else if(action==='stats'){const navItems=document.querySelectorAll('.nav-item');switchPage('stats',navItems[navItems.length-1]);showToast('📊 已切换到统计页');}
         else if(action==='reminder'){
           if(!habit)return;
           const t=prompt('请输入提醒时间（格式 HH:MM，留空取消提醒）',habit.reminderTime||'08:00');
           if(t!==null){habit.reminderTime=t.trim()||null;saveData(appData);render();showToast(habit.reminderTime?'🔔 提醒已设置：'+habit.reminderTime:'🔕 提醒已取消');}
         }
+        else if(action==='template'){saveHabitAsTemplate(itemId);}
         else if(action==='delete'){deleteHabit(itemId);}
+      });
+    });
+  }else if(longPressTarget.classList.contains('plan-card')){
+    const plan=appData.plans.find(p=>p.id===itemId);
+    menu.innerHTML=
+      '<button data-action="edit">✏️ 编辑计划</button>'+
+      '<button data-action="copy">📋 复制计划名</button>'+
+      '<button data-action="progress">📊 查看进度详情</button>'+
+      '<button data-action="template">📋 保存为模板</button>'+
+      '<button data-action="delete" style="color:#E74C3C">🗑 删除计划</button>';
+    menu.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const action=btn.dataset.action;
+        closeMenu();
+        if(action==='edit'){openPlanEditor(itemId);}
+        else if(action==='copy'){if(plan){navigator.clipboard?.writeText(plan.name).catch(()=>{});showToast('📋 已复制计划名');}}
+        else if(action==='progress'){showPlanProgressDetail(itemId);}
+        else if(action==='template'){savePlanAsTemplate(itemId);}
+        else if(action==='delete'){deletePlan(itemId);}
       });
     });
   }
   document.body.appendChild(menu);
+  // 测量实际尺寸后调整位置，防止超出视口
+  const _mw=menu.offsetWidth,_mh=menu.offsetHeight;
+  menu.style.left=Math.min(parseInt(menu.style.left),window.innerWidth-_mw-8)+'px';
+  menu.style.top=Math.min(parseInt(menu.style.top),window.innerHeight-_mh-8)+'px';
   setTimeout(()=>{document.addEventListener('click',e=>{if(!menu.contains(e.target))menu.remove();},{once:true});},100);
 }
 
@@ -1934,11 +2210,15 @@ function resetDate(){currentDate=new Date();renderTasks();}
 
 // ============ 弹窗 ============
 function openAddModal(){
+  editingTaskId=null;
   document.getElementById('taskName').value='';document.getElementById('taskNote').value='';
   document.getElementById('taskDuration').value='';document.getElementById('taskReminder').value='';
   selectedPriority='mid';
   document.querySelectorAll('.priority-option').forEach(o=>o.classList.remove('selected'));
   document.querySelector('.priority-option.mid').classList.add('selected');
+  document.getElementById('taskCompletedGroup').style.display='none';
+  document.getElementById('taskSaveAsTplBtn').style.display='none';
+  document.getElementById('taskSaveBtn').textContent='保存';
   document.getElementById('taskModal').classList.add('show');
   setTimeout(()=>document.getElementById('taskName').focus(),300);
   playClickSound();
@@ -1980,8 +2260,11 @@ function saveEditingTaskAsTemplate(){
 }
 
 function openHabitModal(){
+  editingHabitId=null;
   document.getElementById('habitName').value='';document.getElementById('habitReminder').value='';
   selectedEmoji='🌱';renderEmojiPicker();
+  document.getElementById('habitSaveAsTplBtn').style.display='none';
+  document.getElementById('habitSaveBtn').textContent='保存';
   document.getElementById('habitModal').classList.add('show');
   setTimeout(()=>document.getElementById('habitName').focus(),300);
   playClickSound();
@@ -2027,15 +2310,65 @@ function saveTask(){
   const duration=parseInt(document.getElementById('taskDuration').value)||null;
   const reminderTime=document.getElementById('taskReminder').value||null;
   const s=currentPage==='tasks'?fmt(currentDate):fmt(new Date());
-  appData.tasks.push({id:gid(),name,note,priority:selectedPriority,duration,reminderTime,completed:false,date:s,createdAt:Date.now()});
-  saveData(appData);closeModal('taskModal');render();showToast('✅ 任务已添加');
+  let completed=false;
+  if(editingTaskId){
+    const selected=document.querySelector('[data-completed].selected');
+    if(selected)completed=selected.dataset.completed==='true';
+  }
+  if(editingTaskId){
+    const oldTaskId=editingTaskId;
+    const newTaskId=gid();
+    appData.tasks=appData.tasks.filter(t=>t.id!==oldTaskId);
+    appData.tasks.push({id:newTaskId,name,note,priority:selectedPriority,duration,reminderTime,completed,date:s,createdAt:Date.now()});
+    if(appData.pomodoroRecords){
+      appData.pomodoroRecords=appData.pomodoroRecords.map(r=>{
+        if(r.taskId===oldTaskId)return{...r,taskId:newTaskId,taskName:name};
+        return r;
+      });
+    }
+    if(appData.pomodoroQueue){
+      appData.pomodoroQueue=appData.pomodoroQueue.map(q=>{
+        if(q.taskId===oldTaskId)return{...q,taskId:newTaskId,name};
+        return q;
+      });
+    }
+    showToast('✅ 任务已更新');
+  }else{
+    appData.tasks.push({id:gid(),name,note,priority:selectedPriority,duration,reminderTime,completed:false,date:s,createdAt:Date.now()});
+    showToast('✅ 任务已添加');
+  }
+  editingTaskId=null;
+  saveData(appData);closeModal('taskModal');render();
 }
 function saveHabit(){
   const name=document.getElementById('habitName').value.trim();
   if(!name){alert('请输入习惯名称');return;}
   const reminderTime=document.getElementById('habitReminder').value||null;
-  appData.habits.push({id:gid(),name,icon:selectedEmoji,reminderTime,createdAt:Date.now()});
-  saveData(appData);closeModal('habitModal');render();showToast('🌟 习惯已添加');
+  if(editingHabitId){
+    const oldHabit=appData.habits.find(x=>x.id===editingHabitId);
+    appData.habits=appData.habits.filter(h=>h.id!==editingHabitId);
+    if(oldHabit){
+      const newId=gid();
+      Object.keys(appData.checkins).forEach(d=>{
+        if(appData.checkins[d].includes(oldHabit.id)){
+          appData.checkins[d]=appData.checkins[d].map(x=>x===oldHabit.id?newId:x);
+        }
+      });
+      appData.plans=appData.plans.map(p=>{
+        if(p.linkedHabits&&p.linkedHabits.includes(oldHabit.id)){
+          return{...p,linkedHabits:p.linkedHabits.map(id=>id===oldHabit.id?newId:id)};
+        }
+        return p;
+      });
+      appData.habits.push({id:newId,name,icon:selectedEmoji,reminderTime,createdAt:Date.now()});
+    }
+    showToast('🌟 习惯已更新');
+  }else{
+    appData.habits.push({id:gid(),name,icon:selectedEmoji,reminderTime,createdAt:Date.now()});
+    showToast('🌟 习惯已添加');
+  }
+  editingHabitId=null;
+  saveData(appData);closeModal('habitModal');render();
 }
 function showCelebration(e){const el=document.createElement('div');el.className='celebration';el.textContent=e;document.body.appendChild(el);setTimeout(()=>el.remove(),1200);}
 // 使用事件委托绑定模态框点击外部关闭（兼容动态添加的弹窗）
@@ -2060,7 +2393,40 @@ window.addEventListener('error',function(e){
 initTheme();
 render();
 startReminderChecker();
+autoBackup();
 </script>
+
+
+<!-- 数据管理弹窗 -->
+<div class="modal-overlay" id="dataManagerModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-handle"></div>
+    <h2>💾 数据管理</h2>
+    <div style="margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:8px;font-size:13px;color:var(--text-light)">
+      <div style="margin-bottom:4px">📦 数据版本：v5</div>
+      <div>🔄 每次更新自动迁移旧数据，每天自动备份（保留最近30个）</div>
+    </div>
+    <div class="form-group">
+      <label>手动导出备份</label>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="exportDataJSON()">📦 导出 JSON</button>
+        <button class="btn btn-mint" style="flex:1" onclick="exportDataMarkdown()">📝 导出 MD</button>
+      </div>
+      <button class="btn" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#667eea,#764ba2);color:white" onclick="exportFullBackup()">🎒 一键完整备份（JSON + MD）</button>
+    </div>
+    <div class="form-group">
+      <label>导入备份（JSON）</label>
+      <input type="file" id="importFile" accept=".json" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px" onchange="importDataJSON(this.files[0])">
+    </div>
+    <div class="form-group">
+      <label>自动备份列表（最近7天）</label>
+      <div id="backupList" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="closeModal('dataManagerModal')">关闭</button>
+    </div>
+  </div>
+</div>
 
 <!-- 模板选择弹窗 -->
 <div class="modal-overlay" id="templatePickerModal">
