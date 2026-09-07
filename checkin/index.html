@@ -721,6 +721,17 @@ body.dark::before{opacity:0.3}
   </div>
 </div>
 
+<!-- 计划进度详情弹窗 -->
+<div class="modal-overlay" id="planProgressModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="planProgressContent"></div>
+    <div class="btn-group" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="closeModal('planProgressModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- 导出弹窗 -->
 <div class="modal-overlay" id="exportModal">
   <div class="modal">
@@ -1021,15 +1032,6 @@ function saveHabitAsTemplate(habitId){
   appData.templates.push({id:gid(),type:'habit',name,category,icon:h.icon,reminderTime:h.reminderTime||null,createdAt:Date.now()});
   saveData(appData);showToast('📋 已保存为模板');playClickSound();
 }
-function savePlanAsTemplate(planId){
-  const p=appData.plans.find(x=>x.id===planId);
-  if(!p)return;
-  const name=prompt('模板名称：',p.name);
-  if(!name)return;
-  const category=prompt('分类（工作/学习/生活/健康/其他）：','工作')||'其他';
-  appData.templates.push({id:gid(),type:'plan',name,category,icon:p.icon,planType:p.type,target:p.target||0,pomodoroTarget:p.pomodoroTarget||0,linkedHabits:p.linkedHabits||[],createdAt:Date.now()});
-  saveData(appData);showToast('📋 已保存为模板');playClickSound();
-}
 
 // ============ 声音 ============
 let audioCtx=null;
@@ -1188,7 +1190,7 @@ function calcPlanProgress(plan){
   return{current:Math.min(current,target),target,percent:target>0?Math.min(100,Math.round(current/target*100)):0};
 }
 function calcPlanPomoProgress(plan){
-  const records=appData.pomodoroRecords.filter(r=>r.planId===plan.id);
+  const records=appData.pomodoroRecords.filter(r=>r.planId===plan.id&&r.date>=plan.startDate&&r.date<=plan.endDate);
   const current=records.length;
   const target=plan.pomodoroTarget||0;
   return{current,target,percent:target>0?Math.min(100,Math.round(current/target*100)):0};
@@ -1203,7 +1205,7 @@ function getPlanStatus(plan){
   if(!hasTarget){if(now>end)return'urgent';return'on-track';}
   if(now>end)return'urgent';
   const totalDays=Math.ceil((end-start)/(1000*60*60*24))+1;
-  const elapsedDays=Math.ceil((now-start)/(1000*60*60*24))+1;
+  const elapsedDays=Math.floor((now-start)/(1000*60*60*24))+1;
   const expectedCount=(elapsedDays/totalDays);
   const taskRate=prog.target>0?prog.current/prog.target:1;
   const pomoRate=pomoProg.target>0?pomoProg.current/pomoProg.target:1;
@@ -1234,7 +1236,7 @@ function renderPlans(){
       progressBars+='<div style="font-size:10px;color:var(--primary);margin-top:4px">🍅 番茄 '+pomoProg.current+'/'+p.pomodoroTarget+'</div>';
       progressBars+='<div class="plan-progress-bar"><div class="plan-progress-fill pomo" style="width:'+pomoProg.percent+'%"></div></div>';
     }
-    return '<div class="plan-card '+p.type+'" style="animation-delay:'+(i*0.05)+'s">'+
+    return '<div class="plan-card '+p.type+'" data-id="'+p.id+'" style="animation-delay:'+(i*0.05)+'s">'+
       '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">'+
       '<button style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(255,255,255,0.8);font-size:14px;cursor:pointer" onclick="openPlanEditor(\''+p.id+'\')" title="编辑">✏️</button>'+
       '<button class="plan-delete" onclick="deletePlan(\''+p.id+'\')">×</button>'+
@@ -1308,8 +1310,12 @@ function savePlan(){
   const now=new Date();
   const range=selectedPlanType==='weekly'?getWeekRange(now):getMonthRange(now);
   if(editingPlanId){
-    appData.plans=appData.plans.filter(p=>p.id!==editingPlanId);
-    appData.plans.push({id:gid(),name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:Date.now()});
+    const idx=appData.plans.findIndex(p=>p.id===editingPlanId);
+    const oldPlan=idx>=0?appData.plans[idx]:null;
+    // 保留原有 planId，确保番茄钟记录不丢失；使用 splice 保持原位置不变
+    // 修改类型或目标时，次数进度会因周期变化自动重新计算
+    const updatedPlan={id:editingPlanId,name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:oldPlan?oldPlan.createdAt:Date.now()};
+    if(idx>=0){appData.plans.splice(idx,1,updatedPlan);}else{appData.plans.push(updatedPlan);}
     showToast('🎯 计划已更新');
   }else{
     appData.plans.push({id:gid(),name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:Date.now()});
@@ -1318,6 +1324,65 @@ function savePlan(){
   editingPlanId=null;
   saveData(appData);closeModal('planModal');render();
 }
+function savePlanAsTemplate(id){
+  const p=appData.plans.find(x=>x.id===id);
+  if(!p){showToast('❌ 计划不存在');return;}
+  const name=prompt('模板名称：',p.name);
+  if(!name)return;
+  const category=prompt('分类（工作/学习/生活/健康/其他）：','工作')||'其他';
+  appData.templates.push({id:gid(),type:'plan',name,category,icon:p.icon,planType:p.type,target:p.target||0,pomodoroTarget:p.pomodoroTarget||0,linkedHabits:p.linkedHabits||[],createdAt:Date.now()});
+  saveData(appData);showToast('📋 已保存为模板');playClickSound();
+}
+
+function showPlanProgressDetail(id){
+  const p=appData.plans.find(x=>x.id===id);
+  if(!p){showToast('❌ 计划不存在');return;}
+  const prog=calcPlanProgress(p);
+  const pomoProg=calcPlanPomoProgress(p);
+  const status=getPlanStatus(p);
+  const statusText={'on-track':'✅ 进行中','behind':'⚠️ 进度落后','urgent':'🔥 即将到期','done':'🎉 已完成'}[status];
+  const start=parseDate(p.startDate),end=parseDate(p.endDate);
+  const now=new Date();
+  const totalDays=Math.ceil((end-start)/(1000*60*60*24))+1;
+  const elapsedDays=Math.max(0,Math.floor((now-start)/(1000*60*60*24))+1);
+  const daysLeft=Math.max(0,Math.ceil((end-now)/(1000*60*60*24)));
+  let habitRows='';
+  if(p.linkedHabits&&p.linkedHabits.length>0){
+    p.linkedHabits.forEach(hid=>{
+      const h=appData.habits.find(x=>x.id===hid);
+      if(h){
+        let count=0;
+        for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+          if(isChecked(hid,fmt(d)))count++;
+        }
+        habitRows+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>'+h.icon+' '+esc(h.name)+'</span><span style="font-weight:600">'+count+' 次</span></div>';
+      }
+    });
+  }
+  const timePercent=Math.min(100,Math.round(elapsedDays/totalDays*100));
+  const content='<div style="text-align:center;margin-bottom:16px"><div style="font-size:28px;margin-bottom:6px">'+p.icon+'</div><div style="font-size:17px;font-weight:600">'+esc(p.name)+'</div><div style="font-size:13px;color:var(--text-light);margin-top:4px">'+statusText+'</div></div>'+
+    '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:12px">'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px">📅 周期</div>'+
+    '<div style="font-size:13px;margin-bottom:8px">'+p.startDate+' 至 '+p.endDate+'</div>'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:4px">时间进度：已过 '+elapsedDays+' / '+totalDays+' 天，剩余 '+daysLeft+' 天</div>'+
+    '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+timePercent+'%;background:var(--primary);border-radius:3px"></div></div>'+
+    '</div>'+
+    '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:12px">'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🎯 次数目标</div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>已完成</span><span style="font-weight:600">'+prog.current+' / '+(p.target>0?p.target+' 次':'未设置')+'</span></div>'+
+    (p.target>0?'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+prog.percent+'%;background:#7EC8A8;border-radius:3px"></div></div><div style="font-size:11px;color:var(--text-light);margin-top:4px;text-align:right">'+prog.percent+'%</div>':'<div style="font-size:11px;color:var(--text-light)">未设置次数目标</div>')+
+    '</div>'+
+    '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:12px">'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🍅 番茄目标</div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>已完成</span><span style="font-weight:600">'+pomoProg.current+' / '+(p.pomodoroTarget>0?p.pomodoroTarget+' 个':'未设置')+'</span></div>'+
+    (p.pomodoroTarget>0?'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pomoProg.percent+'%;background:var(--primary);border-radius:3px"></div></div><div style="font-size:11px;color:var(--text-light);margin-top:4px;text-align:right">'+pomoProg.percent+'%</div>':'<div style="font-size:11px;color:var(--text-light)">未设置番茄目标</div>')+
+    '</div>'+
+    (habitRows?'<div style="background:var(--bg);border-radius:12px;padding:12px"><div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🔗 关联习惯打卡明细</div>'+habitRows+'</div>':'');
+  document.getElementById('planProgressContent').innerHTML=content;
+  document.getElementById('planProgressModal').classList.add('show');
+  playClickSound();
+}
+
 function deletePlan(id){if(!confirm('确定删除这个计划吗？'))return;appData.plans=appData.plans.filter(p=>p.id!==id);saveData(appData);render();}
 
 // ============ 数据导出 ============
@@ -1737,19 +1802,38 @@ document.addEventListener('touchend',e=>{
 },{passive:true});
 
 // 长按菜单
-let longPressTimer=null,longPressTarget=null;
+let longPressTimer=null,longPressTarget=null,longPressFired=false;
 document.addEventListener('touchstart',e=>{
   const taskItem=e.target.closest('.task-item');
   const habitCard=e.target.closest('.habit-card');
-  if(taskItem||habitCard){
-    longPressTarget=taskItem||habitCard;
-    longPressTimer=setTimeout(()=>showLongPressMenu(e.touches[0].clientX,e.touches[0].clientY),500);
+  const planCard=e.target.closest('.plan-card');
+  if(taskItem||habitCard||planCard){
+    longPressTarget=taskItem||habitCard||planCard;
+    longPressTimer=setTimeout(()=>{longPressFired=true;showLongPressMenu(e.touches[0].clientX,e.touches[0].clientY);},500);
   }
 },{passive:true});
 document.addEventListener('touchend',()=>{if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}});
 document.addEventListener('touchmove',()=>{if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}});
+// 桌面端鼠标长按支持
+document.addEventListener('mousedown',e=>{
+  if(e.button!==0)return;
+  if(e.target.closest('button'))return;
+  const taskItem=e.target.closest('.task-item');
+  const habitCard=e.target.closest('.habit-card');
+  const planCard=e.target.closest('.plan-card');
+  if(taskItem||habitCard||planCard){
+    longPressFired=false;
+    longPressTarget=taskItem||habitCard||planCard;
+    longPressTimer=setTimeout(()=>{longPressFired=true;showLongPressMenu(e.clientX,e.clientY);},500);
+  }
+});
+document.addEventListener('mouseup',()=>{if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}});
+document.addEventListener('mousemove',()=>{if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}});
+// 防止长按后立即触发点击事件
+document.addEventListener('click',e=>{if(longPressFired){if(!e.target.closest('.long-press-menu')){e.preventDefault();e.stopPropagation();document.querySelectorAll('.long-press-menu').forEach(m=>m.remove());}longPressFired=false;}},true);
 function showLongPressMenu(x,y){
   playClickSound();
+  document.querySelectorAll('.long-press-menu').forEach(m=>m.remove());
   const menu=document.createElement('div');
   menu.className='long-press-menu';
   menu.style.left=Math.min(x,window.innerWidth-160)+'px';
@@ -1772,7 +1856,7 @@ function showLongPressMenu(x,y){
         else if(action==='delete'){deleteTask(itemId);}
       });
     });
-  }else{
+  }else if(longPressTarget.classList.contains('habit-card')){
     const habit=appData.habits.find(h=>h.id===itemId);
     menu.innerHTML=
       '<button data-action="edit">✏️ 编辑</button>'+
@@ -1795,8 +1879,31 @@ function showLongPressMenu(x,y){
         else if(action==='delete'){deleteHabit(itemId);}
       });
     });
+  }else if(longPressTarget.classList.contains('plan-card')){
+    const plan=appData.plans.find(p=>p.id===itemId);
+    menu.innerHTML=
+      '<button data-action="edit">✏️ 编辑计划</button>'+
+      '<button data-action="copy">📋 复制计划名</button>'+
+      '<button data-action="progress">📊 查看进度详情</button>'+
+      '<button data-action="template">📋 保存为模板</button>'+
+      '<button data-action="delete" style="color:#E74C3C">🗑 删除计划</button>';
+    menu.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const action=btn.dataset.action;
+        closeMenu();
+        if(action==='edit'){openPlanEditor(itemId);}
+        else if(action==='copy'){if(plan){navigator.clipboard?.writeText(plan.name).catch(()=>{});showToast('📋 已复制计划名');}}
+        else if(action==='progress'){showPlanProgressDetail(itemId);}
+        else if(action==='template'){savePlanAsTemplate(itemId);}
+        else if(action==='delete'){deletePlan(itemId);}
+      });
+    });
   }
   document.body.appendChild(menu);
+  // 测量实际尺寸后调整位置，防止超出视口
+  const _mw=menu.offsetWidth,_mh=menu.offsetHeight;
+  menu.style.left=Math.min(parseInt(menu.style.left),window.innerWidth-_mw-8)+'px';
+  menu.style.top=Math.min(parseInt(menu.style.top),window.innerHeight-_mh-8)+'px';
   setTimeout(()=>{document.addEventListener('click',e=>{if(!menu.contains(e.target))menu.remove();},{once:true});},100);
 }
 
