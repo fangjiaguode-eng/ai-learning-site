@@ -938,17 +938,21 @@ function exportDataMarkdown(){
   showToast('📝 Markdown 备份已下载');playClickSound();
 }
 function importDataJSON(file){
+  if(!file){return;}
   const reader=new FileReader();
   reader.onload=function(e){
     try{
       const imported=JSON.parse(e.target.result);
       const data=imported.data||imported;
-      if(!data.tasks&&!data.habits){alert('❌ 文件格式不正确');return;}
+      if(!data.tasks&&!data.habits){alert('❌ 文件格式不正确');document.getElementById('importFile').value='';return;}
       const taskCount=data.tasks?data.tasks.length:0;
       const habitCount=data.habits?data.habits.length:0;
       const planCount=data.plans?data.plans.length:0;
       const pomoCount=data.pomodoroRecords?data.pomodoroRecords.length:0;
-      if(!confirm('⚠️ 导入将覆盖当前所有数据！\n\n📊 备份数据概览：\n- 任务：'+taskCount+' 条\n- 习惯：'+habitCount+' 个\n- 计划：'+planCount+' 个\n- 番茄记录：'+pomoCount+' 条\n\n确定继续吗？'))return;
+      if(!confirm('⚠️ 导入将覆盖当前所有数据！\n\n📊 备份数据概览：\n- 任务：'+taskCount+' 条\n- 习惯：'+habitCount+' 个\n- 计划：'+planCount+' 个\n- 番茄记录：'+pomoCount+' 条\n\n确定继续吗？')){document.getElementById('importFile').value='';return;}
+      if(!data.tasks)data.tasks=[];
+      if(!data.habits)data.habits=[];
+      if(!data.checkins)data.checkins={};
       if(!data.pomodoroRecords)data.pomodoroRecords=[];
       if(!data.pomodoroQueue)data.pomodoroQueue=[];
       if(!data.plans)data.plans=[];
@@ -956,8 +960,9 @@ function importDataJSON(file){
       if(!data.theme)data.theme='light';
       data.dataVersion=DATA_VERSION;
       appData=data;saveData(appData);render();
+      document.getElementById('importFile').value='';
       showToast('✅ 数据导入成功');playChime();
-    }catch(err){alert('❌ 导入失败：文件格式错误');console.error(err);}
+    }catch(err){alert('❌ 导入失败：文件格式错误');console.error(err);document.getElementById('importFile').value='';}
   };
   reader.readAsText(file);
 }
