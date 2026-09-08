@@ -1361,7 +1361,7 @@ function getPlanStatus(plan){
   if(plan.completed)return'done';
   if(hasTarget&&prog.current>=prog.target&&pomoProg.current>=pomoProg.target){
     // 自动达标完成，记录完成信息
-    if(!plan.completedAt){plan.completedAt=Date.now();plan.completedBy='auto';saveData(appData);}
+    if(!plan.completed){plan.completed=true;if(!plan.completedAt){plan.completedAt=Date.now();plan.completedBy='auto';}saveData(appData);}
     return'done';
   }
   if(!hasTarget){if(now>end)return'urgent';return'on-track';}
@@ -1427,7 +1427,7 @@ function openPlanModal(){
   renderPlanEmojiPicker();renderPlanHabitsSelect();
   document.getElementById('planCompletedGroup').style.display='none';
   document.querySelectorAll('[data-plan-completed]').forEach(o=>o.classList.remove('selected'));
-  document.querySelector('[data-plan-completed="true"]').classList.add('selected');
+  document.querySelector('[data-plan-completed="false"]').classList.add('selected');
   document.getElementById('planSaveAsTplBtn').style.display='none';
   document.getElementById('planSaveBtn').textContent='保存';
   document.getElementById('planModal').classList.add('show');
@@ -1457,7 +1457,7 @@ function openPlanEditor(id){
   }
   document.getElementById('planCompletedGroup').style.display='block';
   document.querySelectorAll('[data-plan-completed]').forEach(o=>o.classList.remove('selected'));
-  document.querySelector('[data-plan-completed="'+(!p.completed)+'"]').classList.add('selected');
+  document.querySelector('[data-plan-completed="'+(!!p.completed)+'"]').classList.add('selected');
   document.getElementById('planSaveAsTplBtn').style.display='inline-block';
   document.getElementById('planSaveBtn').textContent='保存修改';
   document.getElementById('planModal').classList.add('show');
@@ -1499,8 +1499,8 @@ function savePlan(){
     let planCompleted=false,planCompletedAt=null,planCompletedBy=null;
     if(editingPlanId){
       const sel=document.querySelector('[data-plan-completed].selected');
-      planCompleted=sel?sel.dataset.planCompleted==='true':false;
-      if(planCompleted){planCompletedAt=Date.now();planCompletedBy='manual';}
+      planCompleted=sel?sel.dataset.planCompleted==='true':(oldPlan?!!oldPlan.completed:false);
+      if(planCompleted){if(oldPlan&&oldPlan.completed){planCompletedAt=oldPlan.completedAt||Date.now();planCompletedBy=oldPlan.completedBy||'manual';}else{planCompletedAt=Date.now();planCompletedBy='manual';}}
     }
     const updatedPlan={id:editingPlanId,name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:oldPlan?oldPlan.createdAt:Date.now(),completed:planCompleted,completedAt:planCompletedAt,completedBy:planCompletedBy};
     if(idx>=0){appData.plans.splice(idx,1,updatedPlan);}else{appData.plans.push(updatedPlan);}
