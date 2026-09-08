@@ -1610,8 +1610,7 @@ function showPlanProgressDetail(id){
     (p.pomodoroTarget>0?'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pomoProg.percent+'%;background:var(--primary);border-radius:3px"></div></div><div style="font-size:11px;color:var(--text-light);margin-top:4px;text-align:right">'+pomoProg.percent+'%</div>':'<div style="font-size:11px;color:var(--text-light)">未设置番茄目标</div>')+
     '</div>'+
     (habitRows?'<div style="background:var(--bg);border-radius:12px;padding:12px"><div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🔗 关联习惯打卡明细</div>'+habitRows+'</div>':'');
-  content+='<div class="btn-group" style="margin-top:14px"><button class="btn btn-mint" onclick="closeModal(\'planProgressModal\');showPlanAdjustModal(\''+p.id+'\')">📊 调整进度</button></div>';
-  document.getElementById('planProgressContent').innerHTML=content;
+  document.getElementById('planProgressContent').innerHTML=content+'<div class="btn-group" style="margin-top:14px"><button class="btn btn-mint" onclick="closeModal(\'planProgressModal\');showPlanAdjustModal(\''+p.id+'\')">📊 调整进度</button></div>';
   document.getElementById('planProgressModal').classList.add('show');
   playClickSound();
 }
