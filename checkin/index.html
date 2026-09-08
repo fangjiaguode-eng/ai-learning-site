@@ -713,6 +713,14 @@ body.dark::before{opacity:0.3}
     <div class="form-group"><label>计划名称</label><input type="text" id="planName" placeholder="例如：本周跑步3次" maxlength="30"></div>
     <div class="form-group"><label>次数目标（可选）</label><input type="number" id="planTarget" placeholder="如：3次" min="1" max="999"></div>
     <div class="form-group"><label>🍅 番茄数目标（可选）</label><input type="number" id="planPomoTarget" placeholder="如：20个番茄" min="1" max="999"></div>
+    <div class="form-group" id="planProgressAdjustGroup" style="display:none;background:var(--bg-secondary);border-radius:8px;padding:10px">
+      <label style="font-size:13px">📊 调整当前进度（不会影响自动累计）</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <input type="number" id="planCurrentCount" placeholder="次数" min="0" max="999" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        <input type="number" id="planCurrentPomo" placeholder="番茄" min="0" max="999" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+      </div>
+      <div style="font-size:11px;color:var(--text-light);margin-top:4px">调整次数会同步补记/删除打卡记录；调整番茄数会补录/删除番茄记录</div>
+    </div>
     <div class="form-group"><label>关联习惯（完成即计入次数进度）</label>
       <div id="planHabitsSelect" style="display:flex;flex-wrap:wrap;gap:6px"></div>
     </div>
@@ -733,6 +741,19 @@ body.dark::before{opacity:0.3}
     <div id="planProgressContent"></div>
     <div class="btn-group" style="margin-top:16px">
       <button class="btn btn-primary" onclick="closeModal('planProgressModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 计划进度调整弹窗 -->
+<div class="modal-overlay" id="planAdjustModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:12px">📊 调整计划进度</h2>
+    <div id="planAdjustContent"></div>
+    <div class="btn-group" style="margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeModal('planAdjustModal')">取消</button>
+      <button class="btn btn-primary" onclick="savePlanAdjust()">保存调整</button>
     </div>
   </div>
 </div>
@@ -1426,6 +1447,9 @@ function openPlanModal(){
   document.querySelector('[data-plan-type="weekly"]').classList.add('selected');
   renderPlanEmojiPicker();renderPlanHabitsSelect();
   document.getElementById('planCompletedGroup').style.display='none';
+  document.getElementById('planProgressAdjustGroup').style.display='none';
+  document.getElementById('planCurrentCount').value='';
+  document.getElementById('planCurrentPomo').value='';
   document.querySelectorAll('[data-plan-completed]').forEach(o=>o.classList.remove('selected'));
   document.querySelector('[data-plan-completed="false"]').classList.add('selected');
   document.getElementById('planSaveAsTplBtn').style.display='none';
@@ -1452,6 +1476,11 @@ function openPlanEditor(id){
   document.querySelectorAll('[data-plan-type]').forEach(o=>o.classList.remove('selected'));
   document.querySelector('[data-plan-type="'+selectedPlanType+'"]').classList.add('selected');
   renderPlanEmojiPicker();renderPlanHabitsSelect();
+  document.getElementById('planProgressAdjustGroup').style.display='block';
+  const _cProg=calcPlanProgress(p);
+  const _pProg=calcPlanPomoProgress(p);
+  document.getElementById('planCurrentCount').value=_cProg.current;
+  document.getElementById('planCurrentPomo').value=_pProg.current;
   if(p.linkedHabits&&p.linkedHabits.length>0){
     document.querySelectorAll('.plan-habit-check').forEach(c=>{c.checked=p.linkedHabits.includes(c.value);});
   }
@@ -1494,15 +1523,29 @@ function savePlan(){
   if(editingPlanId){
     const idx=appData.plans.findIndex(p=>p.id===editingPlanId);
     const oldPlan=idx>=0?appData.plans[idx]:null;
+    // 处理进度调整：比较旧进度与新输入值
+    let _completedBefore=false;
+    if(oldPlan){
+      _completedBefore=!!oldPlan.completed;
+      const newCountVal=document.getElementById('planCurrentCount').value;
+      const newPomoVal=document.getElementById('planCurrentPomo').value;
+      const oldC=calcPlanProgress(oldPlan).current;
+      const oldP=calcPlanPomoProgress(oldPlan).current;
+      const newC=newCountVal===''?oldC:parseInt(newCountVal)||0;
+      const newP=newPomoVal===''?oldP:parseInt(newPomoVal)||0;
+      if(newC!==oldC)adjustPlanCount(oldPlan,newC);
+      if(newP!==oldP)adjustPlanPomo(oldPlan,newP);
+    }
     // 保留原有 planId，确保番茄钟记录不丢失；使用 splice 保持原位置不变
     // 修改类型或目标时，次数进度会因周期变化自动重新计算
     let planCompleted=false,planCompletedAt=null,planCompletedBy=null;
     if(editingPlanId){
       const sel=document.querySelector('[data-plan-completed].selected');
       planCompleted=sel?sel.dataset.planCompleted==='true':(oldPlan?!!oldPlan.completed:false);
+      if(oldPlan&&oldPlan.completed&&!_completedBefore)planCompleted=true;
       if(planCompleted){if(oldPlan&&oldPlan.completed){planCompletedAt=oldPlan.completedAt||Date.now();planCompletedBy=oldPlan.completedBy||'manual';}else{planCompletedAt=Date.now();planCompletedBy='manual';}}
     }
-    const updatedPlan={id:editingPlanId,name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:oldPlan?oldPlan.createdAt:Date.now(),completed:planCompleted,completedAt:planCompletedAt,completedBy:planCompletedBy};
+    const updatedPlan={id:editingPlanId,name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:oldPlan?oldPlan.createdAt:Date.now(),completed:planCompleted,completedAt:planCompletedAt,completedBy:planCompletedBy,adjustLogs:oldPlan?oldPlan.adjustLogs:undefined};
     if(idx>=0){appData.plans.splice(idx,1,updatedPlan);}else{appData.plans.push(updatedPlan);}
     showToast('🎯 计划已更新');
   }else{
@@ -1567,6 +1610,7 @@ function showPlanProgressDetail(id){
     (p.pomodoroTarget>0?'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pomoProg.percent+'%;background:var(--primary);border-radius:3px"></div></div><div style="font-size:11px;color:var(--text-light);margin-top:4px;text-align:right">'+pomoProg.percent+'%</div>':'<div style="font-size:11px;color:var(--text-light)">未设置番茄目标</div>')+
     '</div>'+
     (habitRows?'<div style="background:var(--bg);border-radius:12px;padding:12px"><div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🔗 关联习惯打卡明细</div>'+habitRows+'</div>':'');
+  content+='<div class="btn-group" style="margin-top:14px"><button class="btn btn-mint" onclick="closeModal(\'planProgressModal\');showPlanAdjustModal(\''+p.id+'\')">📊 调整进度</button></div>';
   document.getElementById('planProgressContent').innerHTML=content;
   document.getElementById('planProgressModal').classList.add('show');
   playClickSound();
@@ -1589,6 +1633,140 @@ function togglePlanComplete(id){
 }
 function markPlanCompleted(id){
   togglePlanComplete(id);
+}
+
+function adjustPlanCount(plan,newCount){
+  const target=plan.target||0;
+  if(newCount<0)newCount=0;
+  if(target>0&&newCount>target)newCount=target;
+  const oldCount=calcPlanProgress(plan).current;
+  if(newCount===oldCount)return;
+  const start=parseDate(plan.startDate),end=parseDate(plan.endDate);
+  const linked=plan.linkedHabits||[];
+  if(linked.length===0){showToast('⚠️ 计划未关联习惯，无法调整次数');return;}
+  const diff=newCount-oldCount;
+  let adjusted=0;
+  if(diff>0){
+    // 需要补记：在周期内最近的未打卡日期补记（轮流往各关联习惯补）
+    let hIdx=0;
+    for(let d=new Date(end);d>=start&&adjusted<diff;d.setDate(d.getDate()-1)){
+      const ds=fmt(d);
+      for(let i=0;i<linked.length&&adjusted<diff;i++){
+        const hid=linked[(hIdx+i)%linked.length];
+        if(!isChecked(hid,ds)){
+          if(!appData.checkins[ds])appData.checkins[ds]=[];
+          appData.checkins[ds].push(hid);
+          adjusted++;
+        }
+      }
+      hIdx=(hIdx+1)%linked.length;
+    }
+    if(adjusted<diff)showToast('⚠️ 周期内可补记的日期不足，实际补记 '+adjusted+' 次');
+  }else if(diff<0){
+    // 需要删除：从周期内最早打卡记录开始删
+    for(let d=new Date(start);d<=end&&adjusted>diff;d.setDate(d.getDate()+1)){
+      const ds=fmt(d);
+      linked.forEach(hid=>{
+        if(adjusted>diff&&appData.checkins[ds]&&appData.checkins[ds].includes(hid)){
+          appData.checkins[ds]=appData.checkins[ds].filter(x=>x!==hid);
+          adjusted--;
+        }
+      });
+    }
+  }
+  // 记录调整日志
+  if(!plan.adjustLogs)plan.adjustLogs=[];
+  plan.adjustLogs.push({time:Date.now(),type:'count',before:oldCount,after:newCount});
+  saveData(appData);
+  // 调整后检查是否达到目标，提示标记完成
+  const nowC=calcPlanProgress(plan).current;
+  if(target>0&&nowC>=target&&!plan.completed){
+    if(confirm('🎉 调整后次数已达标（'+nowC+'/'+target+'），是否标记计划完成？')){
+      plan.completed=true;plan.completedAt=Date.now();plan.completedBy='manual';saveData(appData);render();playChime();launchConfetti();showToast('🎉 计划已标记完成');
+    }
+  }
+  showToast('📊 次数进度已调整：'+oldCount+' → '+nowC);playClickSound();
+}
+function adjustPlanPomo(plan,newCount){
+  const target=plan.pomodoroTarget||0;
+  if(newCount<0)newCount=0;
+  if(target>0&&newCount>target)newCount=target;
+  const oldCount=calcPlanPomoProgress(plan).current;
+  if(newCount===oldCount)return;
+  const records=appData.pomodoroRecords.filter(r=>r.planId===plan.id&&r.date>=plan.startDate&&r.date<=plan.endDate);
+  const diff=newCount-oldCount;
+  if(diff>0){
+    for(let i=0;i<diff;i++){
+      const _today=fmt(new Date());const _adjDate=(_today>=plan.startDate&&_today<=plan.endDate)?_today:plan.endDate;appData.pomodoroRecords.push({id:gid(),planId:plan.id,taskId:null,queueId:null,taskName:'手动调整',duration:25,completedAt:Date.now(),date:_adjDate,manual:true});
+    }
+  }else if(diff<0){
+    // 优先删除 manual 标记的记录，其次删除最早记录
+    let toRemove=Math.abs(diff);
+    const manualRecs=records.filter(r=>r.manual);
+    for(const r of manualRecs){
+      if(toRemove<=0)break;
+      appData.pomodoroRecords=appData.pomodoroRecords.filter(x=>x.id!==r.id);
+      toRemove--;
+    }
+    if(toRemove>0){
+      const sorted=appData.pomodoroRecords.filter(r=>r.planId===plan.id&&r.date>=plan.startDate&&r.date<=plan.endDate).sort((a,b)=>a.completedAt-b.completedAt);
+      for(const r of sorted){
+        if(toRemove<=0)break;
+        appData.pomodoroRecords=appData.pomodoroRecords.filter(x=>x.id!==r.id);
+        toRemove--;
+      }
+    }
+  }
+  if(!plan.adjustLogs)plan.adjustLogs=[];
+  plan.adjustLogs.push({time:Date.now(),type:'pomo',before:oldCount,after:newCount});
+  saveData(appData);
+  const nowP=calcPlanPomoProgress(plan).current;
+  if(target>0&&nowP>=target&&!plan.completed){
+    if(confirm('🎉 调整后番茄数已达标（'+nowP+'/'+target+'），是否标记计划完成？')){
+      plan.completed=true;plan.completedAt=Date.now();plan.completedBy='manual';saveData(appData);render();playChime();launchConfetti();showToast('🎉 计划已标记完成');
+    }
+  }
+  showToast('🍅 番茄进度已调整：'+oldCount+' → '+nowP);playClickSound();
+}
+function showPlanAdjustModal(id){
+  editingPlanId=id;
+  const p=appData.plans.find(x=>x.id===id);
+  if(!p){showToast('❌ 计划不存在');return;}
+  const cProg=calcPlanProgress(p);
+  const pProg=calcPlanPomoProgress(p);
+  const target=p.target||0,pomoTarget=p.pomodoroTarget||0;
+  const content='<div style="text-align:center;margin-bottom:14px"><div style="font-size:26px;margin-bottom:4px">'+p.icon+'</div><div style="font-size:16px;font-weight:600">'+esc(p.name)+'</div></div>'+
+    '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px">'+
+    '<div style="font-size:13px;font-weight:600;margin-bottom:8px">📊 调整完成次数</div>'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px">当前：'+cProg.current+' / '+(target>0?target:'未设置')+'</div>'+
+    '<input type="number" id="adjCountInput" min="0" max="'+(target||999)+'" value="'+cProg.current+'" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:6px">'+
+    '<div style="font-size:11px;color:var(--text-light)">调整会同步补记/删除关联习惯的打卡记录</div>'+
+    '</div>'+
+    '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px">'+
+    '<div style="font-size:13px;font-weight:600;margin-bottom:8px">🍅 调整番茄数</div>'+
+    '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px">当前：'+pProg.current+' / '+(pomoTarget>0?pomoTarget:'未设置')+'</div>'+
+    '<input type="number" id="adjPomoInput" min="0" max="'+(pomoTarget||999)+'" value="'+pProg.current+'" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:6px">'+
+    '<div style="font-size:11px;color:var(--text-light)">调整会补录/删除番茄记录（优先删除手动补录）</div>'+
+    '</div>';
+  document.getElementById('planAdjustContent').innerHTML=content;
+  document.getElementById('planAdjustModal').classList.add('show');
+  playClickSound();
+}
+function savePlanAdjust(){
+  const p=appData.plans.find(x=>x.id===editingPlanId);
+  if(!p){showToast('❌ 计划不存在');return;}
+  const cInput=document.getElementById('adjCountInput');
+  const pInput=document.getElementById('adjPomoInput');
+  if(cInput){
+    const newC=parseInt(cInput.value)||0;
+    if(newC!==calcPlanProgress(p).current)adjustPlanCount(p,newC);
+  }
+  if(pInput){
+    const newP=parseInt(pInput.value)||0;
+    if(newP!==calcPlanPomoProgress(p).current)adjustPlanPomo(p,newP);
+  }
+  closeModal('planAdjustModal');
+  render();
 }
 
 function deletePlan(id){if(!confirm('确定删除这个计划吗？'))return;appData.plans=appData.plans.filter(p=>p.id!==id);saveData(appData);render();}
@@ -2092,6 +2270,7 @@ function showLongPressMenu(x,y){
     menu.innerHTML=
       '<button data-action="edit">✏️ 编辑计划</button>'+
       '<button data-action="complete">'+(plan&&plan.completed?'↩️ 重新打开':'✅ 标记完成')+'</button>'+
+      '<button data-action="adjust">📊 调整进度</button>'+
       '<button data-action="copy">📋 复制计划名</button>'+
       '<button data-action="progress">📊 查看进度详情</button>'+
       '<button data-action="template">📋 保存为模板</button>'+
@@ -2102,6 +2281,7 @@ function showLongPressMenu(x,y){
         closeMenu();
         if(action==='edit'){openPlanEditor(itemId);}
         else if(action==='complete'){togglePlanComplete(itemId);}
+        else if(action==='adjust'){editingPlanId=itemId;showPlanAdjustModal(itemId);}
         else if(action==='copy'){if(plan){navigator.clipboard?.writeText(plan.name).catch(()=>{});showToast('📋 已复制计划名');}}
         else if(action==='progress'){showPlanProgressDetail(itemId);}
         else if(action==='template'){savePlanAsTemplate(itemId);}
@@ -2365,6 +2545,7 @@ function closeModal(id){
   if(id==='taskModal')editingTaskId=null;
   if(id==='habitModal')editingHabitId=null;
   if(id==='planModal')editingPlanId=null;
+  if(id==='planAdjustModal')editingPlanId=null;
 }
 function saveTask(){
   const name=document.getElementById('taskName').value.trim();
