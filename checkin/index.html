@@ -1524,7 +1524,9 @@ function savePlan(){
     const idx=appData.plans.findIndex(p=>p.id===editingPlanId);
     const oldPlan=idx>=0?appData.plans[idx]:null;
     // 处理进度调整：比较旧进度与新输入值
+    let _completedBefore=false;
     if(oldPlan){
+      _completedBefore=!!oldPlan.completed;
       const newCountVal=document.getElementById('planCurrentCount').value;
       const newPomoVal=document.getElementById('planCurrentPomo').value;
       const oldC=calcPlanProgress(oldPlan).current;
@@ -1540,9 +1542,10 @@ function savePlan(){
     if(editingPlanId){
       const sel=document.querySelector('[data-plan-completed].selected');
       planCompleted=sel?sel.dataset.planCompleted==='true':(oldPlan?!!oldPlan.completed:false);
+      if(oldPlan&&oldPlan.completed&&!_completedBefore)planCompleted=true;
       if(planCompleted){if(oldPlan&&oldPlan.completed){planCompletedAt=oldPlan.completedAt||Date.now();planCompletedBy=oldPlan.completedBy||'manual';}else{planCompletedAt=Date.now();planCompletedBy='manual';}}
     }
-    const updatedPlan={id:editingPlanId,name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:oldPlan?oldPlan.createdAt:Date.now(),completed:planCompleted,completedAt:planCompletedAt,completedBy:planCompletedBy};
+    const updatedPlan={id:editingPlanId,name,type:selectedPlanType,target,pomodoroTarget:pomoTarget,icon:selectedPlanEmoji,linkedHabits,startDate:range.start,endDate:range.end,createdAt:oldPlan?oldPlan.createdAt:Date.now(),completed:planCompleted,completedAt:planCompletedAt,completedBy:planCompletedBy,adjustLogs:oldPlan?oldPlan.adjustLogs:undefined};
     if(idx>=0){appData.plans.splice(idx,1,updatedPlan);}else{appData.plans.push(updatedPlan);}
     showToast('🎯 计划已更新');
   }else{
@@ -1648,13 +1651,15 @@ function adjustPlanCount(plan,newCount){
     let hIdx=0;
     for(let d=new Date(end);d>=start&&adjusted<diff;d.setDate(d.getDate()-1)){
       const ds=fmt(d);
-      const hid=linked[hIdx%linked.length];
-      if(!isChecked(hid,ds)){
-        if(!appData.checkins[ds])appData.checkins[ds]=[];
-        appData.checkins[ds].push(hid);
-        adjusted++;
+      for(let i=0;i<linked.length&&adjusted<diff;i++){
+        const hid=linked[(hIdx+i)%linked.length];
+        if(!isChecked(hid,ds)){
+          if(!appData.checkins[ds])appData.checkins[ds]=[];
+          appData.checkins[ds].push(hid);
+          adjusted++;
+        }
       }
-      hIdx++;
+      hIdx=(hIdx+1)%linked.length;
     }
     if(adjusted<diff)showToast('⚠️ 周期内可补记的日期不足，实际补记 '+adjusted+' 次');
   }else if(diff<0){
@@ -1692,7 +1697,7 @@ function adjustPlanPomo(plan,newCount){
   const diff=newCount-oldCount;
   if(diff>0){
     for(let i=0;i<diff;i++){
-      appData.pomodoroRecords.push({id:gid(),planId:plan.id,taskId:null,queueId:null,taskName:'手动调整',duration:25,completedAt:Date.now(),date:fmt(new Date()),manual:true});
+      const _today=fmt(new Date());const _adjDate=(_today>=plan.startDate&&_today<=plan.endDate)?_today:plan.endDate;appData.pomodoroRecords.push({id:gid(),planId:plan.id,taskId:null,queueId:null,taskName:'手动调整',duration:25,completedAt:Date.now(),date:_adjDate,manual:true});
     }
   }else if(diff<0){
     // 优先删除 manual 标记的记录，其次删除最早记录
@@ -1724,6 +1729,7 @@ function adjustPlanPomo(plan,newCount){
   showToast('🍅 番茄进度已调整：'+oldCount+' → '+nowP);playClickSound();
 }
 function showPlanAdjustModal(id){
+  editingPlanId=id;
   const p=appData.plans.find(x=>x.id===id);
   if(!p){showToast('❌ 计划不存在');return;}
   const cProg=calcPlanProgress(p);
@@ -2539,6 +2545,7 @@ function closeModal(id){
   if(id==='taskModal')editingTaskId=null;
   if(id==='habitModal')editingHabitId=null;
   if(id==='planModal')editingPlanId=null;
+  if(id==='planAdjustModal')editingPlanId=null;
 }
 function saveTask(){
   const name=document.getElementById('taskName').value.trim();
