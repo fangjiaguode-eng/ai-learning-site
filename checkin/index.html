@@ -2004,7 +2004,8 @@ function startPomodoro(){
 function pausePomodoro(){
   pomoRunning=false;clearInterval(pomoInterval);
   document.getElementById('pomoPlayBtn').textContent='▶';
-  playClickSound();
+  if('speechSynthesis' in window)window.speechSynthesis.cancel();
+  speak(pomoState==='focus'?'专注已暂停':(pomoState==='long_break'?'长休息已暂停':'休息已暂停'));
 }
 function stopPomoInterval(){clearInterval(pomoInterval);pomoRunning=false;document.getElementById('pomoPlayBtn').textContent='▶';}
 function resetPomodoro(){
