@@ -1987,7 +1987,7 @@ function startPomodoro(){
     if(pomoLeft<=0)finishPomoPhase();
   },1000);
   updatePomoHeader();
-  playClickSound();
+  playBeep(880,0.18);vibrate(50);
 }
 function pausePomodoro(){
   pomoRunning=false;clearInterval(pomoInterval);
@@ -2011,7 +2011,7 @@ function finishPomoPhase(){
     if(pomoLinkedQueueId){const q=appData.pomodoroQueue.find(x=>x.id===pomoLinkedQueueId);if(q)q.completedPomodoros=(q.completedPomodoros||0)+1;}
     saveData(appData);
     renderPomoRecords();renderPomoQueue();render();
-    playChime();vibrate([200,100,200]);launchConfetti();
+    playBeep(660,0.12);vibrate([60,80,60]);launchConfetti();
     showInAppAlert('🍅 番茄完成！',''+(pomoLinkedName||'专注')+' · '+Math.round(pomoDuration/60)+'分钟');
     if(pomoCycleCount%POMO_PER_CYCLE===0){pomoState='long_break';pomoLeft=LONG_BREAK;showNotification('长休息时间','完成了'+POMO_PER_CYCLE+'个番茄，休息15分钟吧！');}
     else{pomoState='short_break';pomoLeft=SHORT_BREAK;showNotification('短休息时间','休息5分钟，喝口水～');}
