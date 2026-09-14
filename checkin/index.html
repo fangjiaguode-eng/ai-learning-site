@@ -580,6 +580,9 @@ body.dark::before{opacity:0.3}
     <button class="btn btn-primary" style="flex:1;padding:10px;font-size:13px;" onclick="openPomodoro()">🍅 番茄钟</button>
     <button class="btn btn-mint" style="flex:1;padding:10px;font-size:13px;" onclick="switchPage('plans',document.querySelectorAll('.nav-item')[2])">🎯 我的计划</button>
     <button class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px;" onclick="openExportModal()">📤 导出</button>
+    <button class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px;" onclick="backupData()">📥 备份</button>
+    <button class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px;" onclick="restoreData()">📦 恢复</button>
+    <input type="file" id="restoreFileInput" accept=".json,application/json" hidden onchange="handleRestoreFile(this)">
   </div>
   <div class="section-title"><span class="emoji">📝</span>今日任务</div>
   <div id="homeTasks"></div>
@@ -921,6 +924,72 @@ function loadData(){
 function saveData(d){try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){console.warn('saveData error:',e);}}
 
 // ============ 数据备份与恢复 ============
+function backupData(){
+  try{
+    const blob=new Blob([JSON.stringify(appData,null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='checkin-backup-'+fmt(new Date()).replace(/-/g,'')+'.json';
+    try{document.body.appendChild(a);a.click();}finally{a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    showToast('📥 JSON 备份已下载');playClickSound();
+  }catch(e){console.warn('backupData error:',e);showToast('备份失败，请重试');}
+}
+function restoreData(){
+  if(!window.FileReader){showToast('当前浏览器不支持');return;}
+  const input=document.getElementById('restoreFileInput');
+  input.value='';input.click();playClickSound();
+}
+function handleRestoreFile(input){
+  const file=input.files&&input.files[0];
+  input.value='';
+  if(!file)return;
+  if(!window.FileReader){showToast('当前浏览器不支持');return;}
+  const reader=new FileReader();
+  reader.onerror=()=>showToast('文件读取失败，请重试');
+  reader.onabort=()=>showToast('文件读取已取消');
+  reader.onload=function(e){
+    let data;
+    const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+    try{
+      data=JSON.parse(e.target.result);
+      if(!isObject(data))throw new Error('Invalid object');
+      const has=key=>Object.prototype.hasOwnProperty.call(data,key);
+      if(has('dataVersion')&&data.dataVersion!==DATA_VERSION)throw new Error('Invalid version');
+      if(!has('dataVersion')&&!['tasks','habits','plans'].some(has))throw new Error('Missing core fields');
+      const arrays=['tasks','habits','plans','timerRecords','pomodoroRecords','pomodoroQueue','templates'];
+      for(const key of arrays){
+        if(has(key)&&(!Array.isArray(data[key])||!data[key].every(isObject)))throw new Error('Invalid '+key);
+        if(!has(key))data[key]=[];
+      }
+      if(has('checkins')&&(!isObject(data.checkins)||!Object.values(data.checkins).every(Array.isArray)))throw new Error('Invalid checkins');
+      if(!has('checkins'))data.checkins={};
+      if(has('pomodoroCount')&&(!Number.isFinite(data.pomodoroCount)||data.pomodoroCount<0))throw new Error('Invalid count');
+      if(!has('pomodoroCount'))data.pomodoroCount=0;
+      if(has('theme')&&!['light','dark','auto'].includes(data.theme))throw new Error('Invalid theme');
+      if(!has('theme'))data.theme='light';
+    }catch(err){showToast('文件格式无效，不是有效的备份文件');return;}
+    if(!confirm('将从备份恢复全部数据，恢复前将自动备份当前数据，确定继续？'))return;
+    const today=fmt(new Date());
+    try{
+      const backups=JSON.parse(localStorage.getItem(BACKUP_KEY)||'[]');
+      if(!Array.isArray(backups))throw new Error('Invalid backup history');
+      backups.push({date:today,timestamp:Date.now(),data:JSON.parse(JSON.stringify(appData)),note:'从文件恢复前自动备份'});
+      const serialized=JSON.stringify(backups.slice(-30));
+      localStorage.setItem(BACKUP_KEY,serialized);
+      if(localStorage.getItem(BACKUP_KEY)!==serialized)throw new Error('Backup not saved');
+    }catch(err){console.warn('restore backup error:',err);showToast('自动备份失败，未恢复数据，请检查存储空间');return;}
+    data.dataVersion=DATA_VERSION;data.lastBackup=today;
+    try{
+      saveData(data);
+      if(localStorage.getItem(SK)!==JSON.stringify(data))throw new Error('Restore not saved');
+    }catch(err){console.warn('restoreData error:',err);showToast('恢复失败，当前数据已自动备份，请检查存储空间');return;}
+    appData=data;
+    try{render();}catch(err){console.warn('restore render error:',err);}
+    showToast('✅ 数据已恢复，请刷新页面');
+  };
+  try{reader.readAsText(file);}catch(err){showToast('文件读取失败，请重试');}
+}
+
 function autoBackup(){
   try{
     const today=fmt(new Date());

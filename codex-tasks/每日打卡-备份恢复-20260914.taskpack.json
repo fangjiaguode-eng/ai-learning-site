@@ -1,0 +1,160 @@
+{
+  "taskpack_id": "每日打卡-备份恢复-20260914",
+  "version": "1.0",
+  "status": "accepted",
+  "generated_at": "2026-09-14",
+  "generated_by": "豆包（豆包↔Codex 交接式协作协议 v1.0）",
+  "project": "每日打卡软件（github_deploy）",
+  "repo": "G:\\每日打卡软件\\github_deploy",
+  "baseline_commit": "96e1237",
+  "objective": "打卡App新增数据备份与恢复：一键备份完整数据为JSON文件下载；从备份文件恢复全部数据（恢复前自动备份当前数据到localStorage防误操作丢失）",
+  "context": {
+    "current_state": "目标文件 G:\\每日打卡软件\\github_deploy\\checkin\\index.html（318599字节，全CRLF，UTF-8无BOM，单文件HTML）。数据键 SK=daily_checkin_data_v5（L869）、DATA_VERSION=5（L870）、BACKUP_KEY=daily_checkin_backups（L871）。loadData L872 / saveData L921。设置区按钮行 L579-583（番茄钟/我的计划/📤导出），新按钮加在此卡片内。现有导出是Markdown周报（generateExportContent L1840），非数据备份，本任务与其互补不得改动。UI惯例：showToast/closeModal/playClickSound/esc/gid。",
+    "root_cause": "用户数据仅存本地localStorage，无完整JSON备份/恢复能力（现有导出仅为Markdown报告）",
+    "conventions": [
+      "驼峰命名新函数",
+      "沿用现有class与modal惯例",
+      "下载用Blob+URL.createObjectURL+临时a[download]",
+      "恢复前必须自动备份当前数据到BACKUP_KEY",
+      "恢复数据必须校验（合法JSON+dataVersion=5或含核心键）"
+    ],
+    "boundaries": [
+      "不改现有导出功能（exportModal/generateExportContent/copyExport）",
+      "不改loadData/saveData迁移逻辑与数据结构",
+      "不碰番茄钟/模板/计划/打卡其他模块",
+      "不部署（只写本地文件，部署由豆包与用户后续处理）",
+      "不动github_deploy下8个历史未跟踪task*_update.md"
+    ]
+  },
+  "inputs": [
+    {
+      "path": "G:\\每日打卡软件\\github_deploy\\checkin\\index.html",
+      "description": "唯一需要修改的文件（打卡App单文件）"
+    }
+  ],
+  "scope": {
+    "include": [
+      "设置区卡片L579-583新增📥备份与📦恢复两个按钮（btn btn-secondary样式）",
+      "新增备份函数：读取完整appData生成JSON下载，文件名checkin-backup-<YYYYMMDD>.json",
+      "新增恢复流程：隐藏file input → FileReader → 校验 → 自动备份当前数据到BACKUP_KEY → confirm确认 → saveData恢复（强制dataVersion=5）→ showToast提示刷新",
+      "恢复校验：非法JSON/缺核心字段/dataVersion不匹配则拒绝不写入",
+      "确认前取消则不写入任何数据；不支持FileReader时降级提示"
+    ],
+    "exclude": [
+      "不改现有导出功能任何代码",
+      "不改loadData/saveData迁移与数据结构",
+      "不碰其他模块",
+      "不做云备份/自动定期备份",
+      "不部署",
+      "不动8个历史未跟踪task*_update.md"
+    ]
+  },
+  "constraints": [
+    "文件保持UTF-8无BOM、CRLF行尾（禁止整体转LF，建议Node脚本精确替换）",
+    "新函数驼峰命名与现有代码一致，新增HTML用现有class",
+    "恢复前必须自动备份当前数据到daily_checkin_backups",
+    "恢复数据必须校验，拒绝非法输入不覆盖数据",
+    "文件名日期拼接，无用户输入注入面",
+    "不支持FileReader时降级提示不强制polyfill"
+  ],
+  "deliverables": [
+    {
+      "path": "G:\\每日打卡软件\\github_deploy\\checkin\\index.html",
+      "description": "修改后的打卡App单文件（新增约60-100行：2按钮+2-3函数+隐藏file input），CRLF/UTF-8保持",
+      "format": "html"
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-01",
+      "description": "设置区卡片L579-583区域出现📥备份与📦恢复两个按钮且可点击",
+      "input": "打开App首页",
+      "expected": "两个新按钮出现，样式与现有按钮一致",
+      "verify": "browser"
+    },
+    {
+      "id": "AC-02",
+      "description": "点击备份下载完整JSON文件",
+      "input": "点击📥备份",
+      "expected": "下载checkin-backup-<日期>.json，内容为完整appData含dataVersion:5与全部数据键",
+      "verify": "browser"
+    },
+    {
+      "id": "AC-03",
+      "description": "恢复合法备份生效",
+      "input": "点击📦恢复→选择AC-02备份文件→确认",
+      "expected": "数据恢复，刷新后与备份文件一致",
+      "verify": "browser"
+    },
+    {
+      "id": "AC-04",
+      "description": "恢复前自动备份当前数据",
+      "input": "恢复前检查localStorage",
+      "expected": "daily_checkin_backups数组新增当前数据记录含时间戳",
+      "verify": "browser"
+    },
+    {
+      "id": "AC-05",
+      "description": "非法文件被拒绝且不破坏数据",
+      "input": "选择非JSON文件或缺核心字段JSON",
+      "expected": "提示文件格式无效，SK键数据不变",
+      "verify": "browser"
+    },
+    {
+      "id": "AC-06",
+      "description": "恢复有确认步骤",
+      "input": "选择合法文件后",
+      "expected": "出现confirm确认框，取消则不写入任何数据",
+      "verify": "browser"
+    },
+    {
+      "id": "AC-07",
+      "description": "语法与引用完整",
+      "input": "静态检查",
+      "expected": "内联script全部编译通过，全部事件引用有定义含新按钮",
+      "verify": "static"
+    },
+    {
+      "id": "AC-08",
+      "description": "改动范围与编码保持",
+      "input": "git diff",
+      "expected": "仅新增目标区域代码，未改动现有导出/数据/其他模块；文件仍CRLF、UTF-8无BOM",
+      "verify": "static"
+    }
+  ],
+  "verification": {
+    "static": [
+      "提取内联script用node vm编译检查",
+      "事件引用完整性检查（onclick/oninput等均有定义）",
+      "git diff核对改动范围与CRLF/UTF-8保持"
+    ],
+    "automated": [],
+    "functional": [
+      "浏览器打开本地文件按AC-01~AC-06手动验收"
+    ]
+  },
+  "escalation": {
+    "blockers": [
+      "目标文件被锁定无法写入",
+      "发现与任务包描述不符的事实（如行号偏移）",
+      "涉及数据覆盖/现有函数修改的决策歧义"
+    ],
+    "unresolved_questions": []
+  },
+  "acceptance_record": {
+    "accepted_at": "2026-09-14",
+    "accepted_by": "豆包（验收）",
+    "method": "任务包预写验收清单 + 静态检查 + 浏览器实测",
+    "results": {
+      "AC-01": "PASS（按钮出现）",
+      "AC-02": "PASS（下载完整JSON 247B dataVersion:5）",
+      "AC-03": "PASS（恢复含任务备份后刷新显示1项待完成）",
+      "AC-04": "PASS（daily_checkin_backups自动备份3条记录含note）",
+      "AC-05": "PASS（非法文件toast拒绝且数据不变）",
+      "AC-06": "PASS（confirm弹出；取消不写入实测）",
+      "AC-07": "PASS（语法1脚本+引用73/370全过）",
+      "AC-08": "PASS（git diff仅+69行新增，CRLF/UTF-8保持）"
+    },
+    "all_passed": true
+  }
+}
