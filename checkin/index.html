@@ -944,29 +944,15 @@ function handleRestoreFile(input){
   input.value='';
   if(!file)return;
   if(!window.FileReader){showToast('当前浏览器不支持');return;}
+  if(file.size>5*1024*1024){showToast('文件过大（超过5MB），请选择正确的备份文件');return;}
   const reader=new FileReader();
   reader.onerror=()=>showToast('文件读取失败，请重试');
   reader.onabort=()=>showToast('文件读取已取消');
   reader.onload=function(e){
     let data;
-    const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
     try{
       data=JSON.parse(e.target.result);
-      if(!isObject(data))throw new Error('Invalid object');
-      const has=key=>Object.prototype.hasOwnProperty.call(data,key);
-      if(has('dataVersion')&&data.dataVersion!==DATA_VERSION)throw new Error('Invalid version');
-      if(!has('dataVersion')&&!['tasks','habits','plans'].some(has))throw new Error('Missing core fields');
-      const arrays=['tasks','habits','plans','timerRecords','pomodoroRecords','pomodoroQueue','templates'];
-      for(const key of arrays){
-        if(has(key)&&(!Array.isArray(data[key])||!data[key].every(isObject)))throw new Error('Invalid '+key);
-        if(!has(key))data[key]=[];
-      }
-      if(has('checkins')&&(!isObject(data.checkins)||!Object.values(data.checkins).every(Array.isArray)))throw new Error('Invalid checkins');
-      if(!has('checkins'))data.checkins={};
-      if(has('pomodoroCount')&&(!Number.isFinite(data.pomodoroCount)||data.pomodoroCount<0))throw new Error('Invalid count');
-      if(!has('pomodoroCount'))data.pomodoroCount=0;
-      if(has('theme')&&!['light','dark','auto'].includes(data.theme))throw new Error('Invalid theme');
-      if(!has('theme'))data.theme='light';
+      data=sanitizeBackupData(data);
     }catch(err){showToast('文件格式无效，不是有效的备份文件');return;}
     if(!confirm('将从备份恢复全部数据，恢复前将自动备份当前数据，确定继续？'))return;
     const today=fmt(new Date());
@@ -1034,12 +1020,13 @@ function exportDataMarkdown(){
 }
 function importDataJSON(file){
   if(!file){return;}
+  if(file.size>5*1024*1024){alert('⚠️ 文件过大（超过5MB），请选择正确的备份文件');document.getElementById('importFile').value='';return;}
   const reader=new FileReader();
   reader.onload=function(e){
     try{
       const imported=JSON.parse(e.target.result);
       const data=imported.data||imported;
-      if(!data.tasks&&!data.habits){alert('❌ 文件格式不正确');document.getElementById('importFile').value='';return;}
+      sanitizeBackupData(data);
       const taskCount=data.tasks?data.tasks.length:0;
       const habitCount=data.habits?data.habits.length:0;
       const planCount=data.plans?data.plans.length:0;
@@ -1069,7 +1056,10 @@ function restoreBackup(date){
   const backup=backups.find(b=>b.date===date);
   if(!backup){alert('❌ 未找到该备份');return;}
   if(!confirm('⚠️ 恢复备份将覆盖当前所有数据，确定恢复到 '+date+' 的数据吗？'))return;
-  appData=JSON.parse(JSON.stringify(backup.data));
+  let restored;
+  try{restored=sanitizeBackupData(JSON.parse(JSON.stringify(backup.data)));}
+  catch(err){alert('❌ 备份数据异常，已取消恢复');console.error(err);return;}
+  appData=restored;
   saveData(appData);render();
   showToast('✅ 已恢复到 '+date+' 的备份');playChime();
 }
@@ -1094,8 +1084,8 @@ function renderBackupList(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">'+
       '<div><div style="font-weight:600">'+b.date+'</div><div style="font-size:12px;color:var(--text-light)">'+timeStr+' 自动备份</div></div>'+
       '<div style="display:flex;gap:8px">'+
-      '<button onclick="restoreBackup(\''+b.date+'\')" style="padding:6px 12px;border:none;border-radius:6px;background:var(--primary);color:white;cursor:pointer;font-size:12px">恢复</button>'+
-      '<button onclick="deleteBackup(\''+b.date+'\')" style="padding:6px 12px;border:none;border-radius:6px;background:#E74C3C;color:white;cursor:pointer;font-size:12px">删除</button>'+
+      '<button onclick="restoreBackup(\''+escJs(b.date)+'\')" style="padding:6px 12px;border:none;border-radius:6px;background:var(--primary);color:white;cursor:pointer;font-size:12px">恢复</button>'+
+      '<button onclick="deleteBackup(\''+escJs(b.date)+'\')" style="padding:6px 12px;border:none;border-radius:6px;background:#E74C3C;color:white;cursor:pointer;font-size:12px">删除</button>'+
       '</div></div>';
   }).join('');
 }
@@ -1133,6 +1123,78 @@ function fmtTime(d){return String(d.getHours()).padStart(2,'0')+':'+String(d.get
 function isToday(d){return fmt(d)===fmt(new Date());}
 function gid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
 function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+// 安全转义：用于 onclick 内 JS 字符串参数（防属性注入与 JS 字符串截断）
+function escJs(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\r\n?/g,'\\n').replace(/\n/g,'\\n').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');}
+// 安全转义：用于 HTML 属性值
+function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+// 备份数据校验/清洗（恢复前强制调用，防止恶意/损坏数据进入渲染层；注意：会就地补默认值并变更入参对象）
+function sanitizeBackupData(raw){
+  const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+  if(!isObject(raw))throw new Error('Invalid object');
+  const has=key=>Object.prototype.hasOwnProperty.call(raw,key);
+  if(has('dataVersion')&&raw.dataVersion!==DATA_VERSION)throw new Error('Invalid version');
+  const coreKeys=['tasks','habits','plans','checkins','templates','pomodoroCount'];
+  if(coreKeys.filter(has).length<2)throw new Error('Missing core fields');
+  const str=v=>typeof v==='string';
+  const numOrNull=v=>v===null||typeof v==='number'||v===undefined;
+  const arrays=['tasks','habits','plans','timerRecords','pomodoroRecords','pomodoroQueue','templates'];
+  for(const key of arrays){
+    if(has(key)&&(!Array.isArray(raw[key])||!raw[key].every(isObject)))throw new Error('Invalid '+key);
+    if(!has(key))raw[key]=[];
+  }
+  for(const t of raw.tasks){
+    if(!t)continue;
+    if('name'in t&&!str(t.name))throw new Error('Invalid task name');
+    if('id'in t&&!str(t.id))throw new Error('Invalid task id');
+    if('duration'in t&&!numOrNull(t.duration))throw new Error('Invalid task duration');
+    if('priority'in t&&!['low','mid','high'].includes(t.priority))throw new Error('Invalid task priority');
+    if(!('priority'in t)||t.priority===undefined||t.priority===null)t.priority='mid';
+  }
+  for(const h of raw.habits){
+    if(!h)continue;
+    if('name'in h&&!str(h.name))throw new Error('Invalid habit name');
+    if('id'in h&&!str(h.id))throw new Error('Invalid habit id');
+    if('icon'in h&&!str(h.icon))throw new Error('Invalid habit icon');
+  }
+  for(const p of raw.plans){
+    if(!p)continue;
+    if('name'in p&&!str(p.name))throw new Error('Invalid plan name');
+    if('id'in p&&!str(p.id))throw new Error('Invalid plan id');
+    if('type'in p&&!['weekly','monthly'].includes(p.type))throw new Error('Invalid plan type');
+    if('linkedHabits'in p&&!Array.isArray(p.linkedHabits))throw new Error('Invalid linkedHabits');
+    if('icon'in p&&!str(p.icon))throw new Error('Invalid plan icon');
+    if('startDate'in p&&!str(p.startDate))throw new Error('Invalid plan date');
+    if('endDate'in p&&!str(p.endDate))throw new Error('Invalid plan date');
+  }
+  for(const t of raw.templates){
+    if(!t)continue;
+    if('name'in t&&!str(t.name))throw new Error('Invalid template name');
+    if('id'in t&&!str(t.id))throw new Error('Invalid template id');
+    if('type'in t&&!['task','habit','plan'].includes(t.type))throw new Error('Invalid template type');
+    if('category'in t&&!str(t.category))throw new Error('Invalid template category');
+  }
+  for(const q of raw.pomodoroQueue){
+    if(!q)continue;
+    if('id'in q&&!str(q.id))throw new Error('Invalid queue id');
+    if('name'in q&&!str(q.name))throw new Error('Invalid queue name');
+  }
+  for(const r of raw.pomodoroRecords){
+    if(!r)continue;
+    if('duration'in r&&!numOrNull(r.duration))throw new Error('Invalid pomo duration');
+    if('taskName'in r&&!str(r.taskName))throw new Error('Invalid pomo task');
+  }
+  for(const r of raw.timerRecords){
+    if(!r)continue;
+    if('duration'in r&&!numOrNull(r.duration))throw new Error('Invalid timer duration');
+  }
+  if(has('checkins')&&(!isObject(raw.checkins)||!Object.values(raw.checkins).every(v=>Array.isArray(v)&&v.every(str))))throw new Error('Invalid checkins');
+  if(!has('checkins'))raw.checkins={};
+  if(has('pomodoroCount')&&(!Number.isFinite(raw.pomodoroCount)||raw.pomodoroCount<0))throw new Error('Invalid count');
+  if(!has('pomodoroCount'))raw.pomodoroCount=0;
+  if(has('theme')&&!['light','dark','auto'].includes(raw.theme))throw new Error('Invalid theme');
+  if(!has('theme'))raw.theme='light';
+  return raw;
+}
 function mdEsc(t){return String(t||'').replace(/\|/g,'\\|').replace(/\n/g,' ');}
 function getTasks(s){return appData.tasks.filter(t=>t.date===s);}
 function getCheckins(s){return appData.checkins[s]||[];}
@@ -1159,7 +1221,7 @@ function renderTemplateList(){
   let templates=getTemplates(templateModalType);
   if(templateCategoryFilter!=='all')templates=templates.filter(t=>t.category===templateCategoryFilter);
   const cats=['all',...new Set(getTemplates(templateModalType).map(t=>t.category||'其他'))];
-  const catHtml=cats.map(cat=>'<button class="template-cat-btn '+(templateCategoryFilter===cat?'active':'')+'" onclick="filterTemplates(\''+cat+'\')">'+(cat==='all'?'全部':cat)+'</button>').join('');
+  const catHtml=cats.map(cat=>'<button class="template-cat-btn '+(templateCategoryFilter===cat?'active':'')+'" onclick="filterTemplates(\''+escJs(cat)+'\')">'+(cat==='all'?'全部':esc(cat))+'</button>').join('');
   if(templates.length===0){
     c.innerHTML='<div class="template-cats">'+catHtml+'</div><div class="empty-state"><div class="emoji">📋</div><p>还没有'+typeLabel+'模板<br>点击下方"新建模板"创建</p></div>';
     return;
@@ -1168,20 +1230,20 @@ function renderTemplateList(){
     const icon=t.icon||(t.type==='task'?'📝':t.type==='habit'?'🌱':'🎯');
     const meta=[];
     if(t.priority)meta.push({high:'🔴高',mid:'🟡中',low:'🟢低'}[t.priority]);
-    if(t.duration)meta.push('⏱'+t.duration+'分');
-    if(t.reminderTime)meta.push('🔔'+t.reminderTime);
-    if(t.target)meta.push('🎯'+t.target+'次');
-    if(t.pomodoroTarget)meta.push('🍅'+t.pomodoroTarget);
-    return '<div class="template-card" data-id="'+t.id+'" style="animation-delay:'+(i*0.03)+'s">'+
-      '<div class="template-icon">'+icon+'</div>'+
+    if(t.duration)meta.push('⏱'+esc(t.duration)+'分');
+    if(t.reminderTime)meta.push('🔔'+esc(t.reminderTime));
+    if(t.target)meta.push('🎯'+esc(t.target)+'次');
+    if(t.pomodoroTarget)meta.push('🍅'+esc(t.pomodoroTarget));
+    return '<div class="template-card" data-id="'+escAttr(t.id)+'" style="animation-delay:'+(i*0.03)+'s">'+
+      '<div class="template-icon">'+esc(icon)+'</div>'+
       '<div class="template-info">'+
         '<div class="template-name">'+esc(t.name)+'</div>'+
         '<div class="template-meta">'+(t.category?'<span class="template-cat-tag">'+esc(t.category)+'</span>':'')+meta.join(' ')+'</div>'+
       '</div>'+
       '<div class="template-actions">'+
-        '<button class="template-apply-btn" onclick="applyTemplate(\''+t.id+'\')" title="应用">✓</button>'+
-        '<button class="template-edit-btn" onclick="editTemplate(\''+t.id+'\')" title="编辑">✏️</button>'+
-        '<button class="template-del-btn" onclick="deleteTemplate(\''+t.id+'\')" title="删除">×</button>'+
+        '<button class="template-apply-btn" onclick="applyTemplate(\''+escJs(t.id)+'\')" title="应用">✓</button>'+
+        '<button class="template-edit-btn" onclick="editTemplate(\''+escJs(t.id)+'\')" title="编辑">✏️</button>'+
+        '<button class="template-del-btn" onclick="deleteTemplate(\''+escJs(t.id)+'\')" title="删除">×</button>'+
       '</div>'+
     '</div>';
   }).join('');
@@ -1278,17 +1340,17 @@ function updateTplPreview(){
     const pri=document.getElementById('tplPriority').value;
     if(pri)meta.push({high:'🔴高',mid:'🟡中',low:'🟢低'}[pri]);
     const dur=document.getElementById('tplDuration').value;
-    if(dur)meta.push('⏱'+dur+'分');
+    if(dur)meta.push('⏱'+esc(dur)+'分');
   }else if(templateModalType==='plan'){
     const tg=document.getElementById('tplTarget').value;
-    if(tg)meta.push('🎯'+tg+'次');
+    if(tg)meta.push('🎯'+esc(tg)+'次');
     const pomo=document.getElementById('tplPomoTarget').value;
-    if(pomo)meta.push('🍅'+pomo);
+    if(pomo)meta.push('🍅'+esc(pomo));
   }
   const rem=document.getElementById('tplReminder').value;
-  if(rem)meta.push('🔔'+rem);
+  if(rem)meta.push('🔔'+esc(rem));
   card.innerHTML='<div class="template-card">'+
-    '<div class="template-icon">'+icon+'</div>'+
+    '<div class="template-icon">'+esc(icon)+'</div>'+
     '<div class="template-info">'+
       '<div class="template-name">'+esc(name||'模板名称')+'</div>'+
       '<div class="template-meta">'+(category?'<span class="template-cat-tag">'+esc(category)+'</span>':'')+meta.join(' ')+'</div>'+
@@ -1555,13 +1617,13 @@ function renderPlans(){
       progressBars+='<div style="font-size:10px;color:var(--primary);margin-top:4px">🍅 番茄 '+pomoProg.current+'/'+p.pomodoroTarget+'</div>';
       progressBars+='<div class="plan-progress-bar"><div class="plan-progress-fill pomo" style="width:'+pomoProg.percent+'%"></div></div>';
     }
-    return '<div class="plan-card '+p.type+(p.completed?' completed':'')+'" data-id="'+p.id+'" style="animation-delay:'+(i*0.05)+'s">'+
+    return '<div class="plan-card '+p.type+(p.completed?' completed':'')+'" data-id="'+escAttr(p.id)+'" style="animation-delay:'+(i*0.05)+'s">'+
       '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">'+
-      '<button style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(255,255,255,0.8);font-size:14px;cursor:pointer" onclick="openPlanEditor(\''+p.id+'\')" title="编辑">✏️</button>'+
-      '<button style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(255,255,255,0.8);font-size:14px;cursor:pointer" onclick="togglePlanComplete(\''+p.id+'\')" title="'+(p.completed?'重新打开':'标记完成')+'">'+(p.completed?'↩️':'✅')+'</button>'+
-      '<button class="plan-delete" onclick="deletePlan(\''+p.id+'\')">×</button>'+
+      '<button style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(255,255,255,0.8);font-size:14px;cursor:pointer" onclick="openPlanEditor(\''+escJs(p.id)+'\')" title="编辑">✏️</button>'+
+      '<button style="width:28px;height:28px;border:none;border-radius:6px;background:rgba(255,255,255,0.8);font-size:14px;cursor:pointer" onclick="togglePlanComplete(\''+escJs(p.id)+'\')" title="'+(p.completed?'重新打开':'标记完成')+'">'+(p.completed?'↩️':'✅')+'</button>'+
+      '<button class="plan-delete" onclick="deletePlan(\''+escJs(p.id)+'\')">×</button>'+
       '</div>'+
-      '<div class="plan-header"><div class="plan-title">'+(p.completed?'✅ ':'')+p.icon+' '+esc(p.name)+'</div><span class="plan-type-tag '+p.type+'">'+(p.type==='weekly'?'周计划':'月计划')+'</span></div>'+
+      '<div class="plan-header"><div class="plan-title">'+(p.completed?'✅ ':'')+esc(p.icon)+' '+esc(p.name)+'</div><span class="plan-type-tag '+p.type+'">'+(p.type==='weekly'?'周计划':'月计划')+'</span></div>'+
       progressBars+
       '<div class="plan-meta"><span>'+(p.type==='weekly'?'本周':'本月')+'目标</span><span class="plan-status '+status+'">'+statusText+'</span></div>'+
       (p.completed&&p.completedAt?'<div style="font-size:11px;color:#7EC8A8;margin-top:6px;display:flex;align-items:center;gap:4px">🏅 '+(p.completedBy==='manual'?'手动完成':'自动达标')+' · '+new Date(p.completedAt).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+
@@ -1633,13 +1695,13 @@ function saveEditingPlanAsTemplate(){
   saveData(appData);showToast('📋 已保存为模板');playClickSound();
 }
 
-function renderPlanEmojiPicker(){document.getElementById('planEmojiPicker').innerHTML=EMOJIS.map(e=>'<div class="emoji-option '+(e===selectedPlanEmoji?'selected':'')+'" onclick="selectPlanEmoji(\''+e+'\',this)">'+e+'</div>').join('');}
+function renderPlanEmojiPicker(){document.getElementById('planEmojiPicker').innerHTML=EMOJIS.map(e=>'<div class="emoji-option '+(e===selectedPlanEmoji?'selected':'')+'" onclick="selectPlanEmoji(\''+escJs(e)+'\',this)">'+e+'</div>').join('');}
 function selectPlanEmoji(e,el){selectedPlanEmoji=e;document.querySelectorAll('#planEmojiPicker .emoji-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
 function selectPlanType(el){selectedPlanType=el.dataset.planType;document.querySelectorAll('[data-plan-type]').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
 function renderPlanHabitsSelect(){
   const c=document.getElementById('planHabitsSelect');
   if(appData.habits.length===0){c.innerHTML='<span style="font-size:12px;color:var(--text-light)">暂无习惯，可先去打卡页添加</span>';return;}
-  c.innerHTML=appData.habits.map(h=>'<label style="display:flex;align-items:center;gap:4px;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:8px;cursor:pointer"><input type="checkbox" value="'+h.id+'" class="plan-habit-check">'+h.icon+' '+esc(h.name)+'</label>').join('');
+  c.innerHTML=appData.habits.map(h=>'<label style="display:flex;align-items:center;gap:4px;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:8px;cursor:pointer"><input type="checkbox" value="'+escAttr(h.id)+'" class="plan-habit-check">'+esc(h.icon)+' '+esc(h.name)+'</label>').join('');
 }
 function savePlan(){
   const name=document.getElementById('planName').value.trim();
@@ -1716,16 +1778,16 @@ function showPlanProgressDetail(id){
         for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
           if(isChecked(hid,fmt(d)))count++;
         }
-        habitRows+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>'+h.icon+' '+esc(h.name)+'</span><span style="font-weight:600">'+count+' 次</span></div>';
+        habitRows+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>'+esc(h.icon)+' '+esc(h.name)+'</span><span style="font-weight:600">'+count+' 次</span></div>';
       }
     });
   }
   const timePercent=Math.min(100,Math.round(elapsedDays/totalDays*100));
-  const content='<div style="text-align:center;margin-bottom:16px"><div style="font-size:28px;margin-bottom:6px">'+p.icon+'</div><div style="font-size:17px;font-weight:600">'+esc(p.name)+'</div><div style="font-size:13px;color:var(--text-light);margin-top:4px">'+statusText+'</div>'+
+  const content='<div style="text-align:center;margin-bottom:16px"><div style="font-size:28px;margin-bottom:6px">'+esc(p.icon)+'</div><div style="font-size:17px;font-weight:600">'+esc(p.name)+'</div><div style="font-size:13px;color:var(--text-light);margin-top:4px">'+statusText+'</div>'+
     (p.completed&&p.completedAt?'<div style="font-size:12px;color:#7EC8A8;margin-top:6px">🏅 '+(p.completedBy==='manual'?'手动完成':'自动达标')+' · '+new Date(p.completedAt).toLocaleString('zh-CN')+'</div>':'')+'</div>'+
     '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:12px">'+
     '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px">📅 周期</div>'+
-    '<div style="font-size:13px;margin-bottom:8px">'+p.startDate+' 至 '+p.endDate+'</div>'+
+    '<div style="font-size:13px;margin-bottom:8px">'+esc(p.startDate)+' 至 '+esc(p.endDate)+'</div>'+
     '<div style="font-size:12px;color:var(--text-light);margin-bottom:4px">时间进度：已过 '+elapsedDays+' / '+totalDays+' 天，剩余 '+daysLeft+' 天</div>'+
     '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+timePercent+'%;background:var(--primary);border-radius:3px"></div></div>'+
     '</div>'+
@@ -1740,7 +1802,7 @@ function showPlanProgressDetail(id){
     (p.pomodoroTarget>0?'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pomoProg.percent+'%;background:var(--primary);border-radius:3px"></div></div><div style="font-size:11px;color:var(--text-light);margin-top:4px;text-align:right">'+pomoProg.percent+'%</div>':'<div style="font-size:11px;color:var(--text-light)">未设置番茄目标</div>')+
     '</div>'+
     (habitRows?'<div style="background:var(--bg);border-radius:12px;padding:12px"><div style="font-size:12px;color:var(--text-light);margin-bottom:8px">🔗 关联习惯打卡明细</div>'+habitRows+'</div>':'');
-  document.getElementById('planProgressContent').innerHTML=content+'<div class="btn-group" style="margin-top:14px"><button class="btn btn-mint" onclick="closeModal(\'planProgressModal\');showPlanAdjustModal(\''+p.id+'\')">📊 调整进度</button></div>';
+  document.getElementById('planProgressContent').innerHTML=content+'<div class="btn-group" style="margin-top:14px"><button class="btn btn-mint" onclick="closeModal(\'planProgressModal\');showPlanAdjustModal(\''+escJs(p.id)+'\')">📊 调整进度</button></div>';
   document.getElementById('planProgressModal').classList.add('show');
   playClickSound();
 }
@@ -1864,7 +1926,7 @@ function showPlanAdjustModal(id){
   const cProg=calcPlanProgress(p);
   const pProg=calcPlanPomoProgress(p);
   const target=p.target||0,pomoTarget=p.pomodoroTarget||0;
-  const content='<div style="text-align:center;margin-bottom:14px"><div style="font-size:26px;margin-bottom:4px">'+p.icon+'</div><div style="font-size:16px;font-weight:600">'+esc(p.name)+'</div></div>'+
+  const content='<div style="text-align:center;margin-bottom:14px"><div style="font-size:26px;margin-bottom:4px">'+esc(p.icon)+'</div><div style="font-size:16px;font-weight:600">'+esc(p.name)+'</div></div>'+
     '<div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px">'+
     '<div style="font-size:13px;font-weight:600;margin-bottom:8px">📊 调整完成次数</div>'+
     '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px">当前：'+cProg.current+' / '+(target>0?target:'未设置')+'</div>'+
@@ -2062,7 +2124,7 @@ function renderPomoLinked(){
     if(pomoLinkedQueueId){const q=appData.pomodoroQueue.find(x=>x.id===pomoLinkedQueueId);if(q){icon='📋';meta='队列任务';pomoLinkedName=q.name;if(q.planId){const p=appData.plans.find(x=>x.id===q.planId);if(p)meta+=' · '+p.name;}}}
     else if(pomoLinkedPlanId){const p=appData.plans.find(x=>x.id===pomoLinkedPlanId);if(p){icon=p.icon;meta=p.type==='weekly'?'周计划':'月计划';pomoLinkedName=p.name;}}
     else if(pomoLinkedTaskId){const t=appData.tasks.find(x=>x.id===pomoLinkedTaskId);if(t){icon='📝';meta='今日任务';pomoLinkedName=t.name;}}
-    c.innerHTML='<div class="pomo-linked-card"><div class="pomo-linked-icon">'+icon+'</div><div class="pomo-linked-info"><div class="pomo-linked-name">'+esc(pomoLinkedName)+'</div><div class="pomo-linked-meta">'+meta+'</div></div><button class="pomo-change-btn" onclick="openLinkSelector()">更换</button></div>';
+    c.innerHTML='<div class="pomo-linked-card"><div class="pomo-linked-icon">'+esc(icon)+'</div><div class="pomo-linked-info"><div class="pomo-linked-name">'+esc(pomoLinkedName)+'</div><div class="pomo-linked-meta">'+esc(meta)+'</div></div><button class="pomo-change-btn" onclick="openLinkSelector()">更换</button></div>';
   }else{
     pomoLinkedName='';
     c.innerHTML='<div class="pomo-linked-card" style="justify-content:center;color:var(--text-light);font-size:12px;cursor:pointer" onclick="openLinkSelector()">点击选择关联的计划/任务 →</div>';
@@ -2076,12 +2138,12 @@ function renderLinkSelectList(){
   if(linkTab==='none'){c.innerHTML='<div class="link-select-item" onclick="setPomoLink(null,null,null)"><div class="link-select-icon">🚫</div><div class="link-select-info"><div class="link-select-name">不关联任何计划/任务</div><div class="link-select-meta">独立使用番茄钟</div></div></div>';return;}
   if(linkTab==='plans'){
     if(appData.plans.length===0){c.innerHTML='<div class="empty-state"><p>暂无计划，先去计划页创建吧</p></div>';return;}
-    c.innerHTML=appData.plans.map(p=>'<div class="link-select-item '+(pomoLinkedPlanId===p.id?'selected':'')+'" onclick="setPomoLink(\''+p.id+'\',null,null)"><div class="link-select-icon">'+p.icon+'</div><div class="link-select-info"><div class="link-select-name">'+esc(p.name)+'</div><div class="link-select-meta">'+(p.type==='weekly'?'周计划':'月计划')+(p.pomodoroTarget>0?' · 番茄目标'+p.pomodoroTarget:'')+'</div></div></div>').join('');
+    c.innerHTML=appData.plans.map(p=>'<div class="link-select-item '+(pomoLinkedPlanId===p.id?'selected':'')+'" onclick="setPomoLink(\''+escJs(p.id)+'\',null,null)"><div class="link-select-icon">'+esc(p.icon)+'</div><div class="link-select-info"><div class="link-select-name">'+esc(p.name)+'</div><div class="link-select-meta">'+(p.type==='weekly'?'周计划':'月计划')+(p.pomodoroTarget>0?' · 番茄目标'+p.pomodoroTarget:'')+'</div></div></div>').join('');
   }else{
     const today=fmt(new Date());
     const tasks=getTasks(today).filter(t=>!t.completed);
     if(tasks.length===0){c.innerHTML='<div class="empty-state"><p>今日暂无未完成任务</p></div>';return;}
-    c.innerHTML=tasks.map(t=>'<div class="link-select-item '+(pomoLinkedTaskId===t.id?'selected':'')+'" onclick="setPomoLink(null,\''+t.id+'\',null)"><div class="link-select-icon">📝</div><div class="link-select-info"><div class="link-select-name">'+esc(t.name)+'</div><div class="link-select-meta">今日任务</div></div></div>').join('');
+    c.innerHTML=tasks.map(t=>'<div class="link-select-item '+(pomoLinkedTaskId===t.id?'selected':'')+'" onclick="setPomoLink(null,\''+escJs(t.id)+'\',null)"><div class="link-select-icon">📝</div><div class="link-select-info"><div class="link-select-name">'+esc(t.name)+'</div><div class="link-select-meta">今日任务</div></div></div>').join('');
   }
 }
 function setPomoLink(planId,taskId,queueId){
@@ -2180,15 +2242,15 @@ function renderPomoQueue(){
     return '<div class="pomo-queue-item '+(isActive?'active':'')+(isDone?' done':'')+'">'+
       '<div class="pomo-queue-name">'+esc(q.name)+'</div>'+
       '<div class="pomo-queue-progress">'+(q.completedPomodoros||0)+'/'+(q.estimatedPomodoros||'∞')+'</div>'+
-      '<button class="pomo-queue-start" onclick="startQueuePomo(\''+q.id+'\')" title="开始">▶</button>'+
-      '<button class="pomo-queue-del" onclick="deleteQueueItem(\''+q.id+'\')">×</button>'+
+      '<button class="pomo-queue-start" onclick="startQueuePomo(\''+escJs(q.id)+'\')" title="开始">▶</button>'+
+      '<button class="pomo-queue-del" onclick="deleteQueueItem(\''+escJs(q.id)+'\')">×</button>'+
     '</div>';
   }).join('');
 }
 function openQueueAdd(){
   document.getElementById('queueName').value='';document.getElementById('queueEstPomo').value='';
   const sel=document.getElementById('queuePlan');
-  sel.innerHTML='<option value="">不关联</option>'+appData.plans.map(p=>'<option value="'+p.id+'">'+p.icon+' '+esc(p.name)+'</option>').join('');
+  sel.innerHTML='<option value="">不关联</option>'+appData.plans.map(p=>'<option value="'+escAttr(p.id)+'">'+esc(p.icon)+' '+esc(p.name)+'</option>').join('');
   document.getElementById('queueModal').classList.add('show');
   setTimeout(()=>document.getElementById('queueName').focus(),300);
   playClickSound();
@@ -2226,7 +2288,7 @@ function renderPomoRecords(){
     return '<div class="pomo-records-item">'+
       '<span class="pomo-records-time">'+fmtTime(time)+'</span>'+
       '<span class="pomo-records-name">'+esc(r.taskName)+'</span>'+
-      '<span class="pomo-records-dur">🍅'+r.duration+'分</span>'+
+      '<span class="pomo-records-dur">🍅'+esc(r.duration)+'分</span>'+
     '</div>';
   }).join('');
 }
@@ -2500,26 +2562,26 @@ function renderTaskItem(t,idx){
   const pc={high:'priority-high',mid:'priority-mid',low:'priority-low'}[t.priority];
   const pt={high:'高',mid:'中',low:'低'}[t.priority];
   const meta=['<span class="priority-tag '+pc+'">'+pt+'</span>'];
-  if(t.duration)meta.push('⏱'+t.duration+'分');
-  if(t.reminderTime)meta.push('🔔'+t.reminderTime);
+  if(t.duration)meta.push('⏱'+esc(t.duration)+'分');
+  if(t.reminderTime)meta.push('🔔'+esc(t.reminderTime));
   if(t.note)meta.push('📌'+esc(t.note));
   const isTimerActive=timerRunning&&timerTaskId===t.id;
-  return '<div class="task-item '+(t.completed?'completed':'')+'" data-id="'+t.id+'" style="animation-delay:'+((idx||0)*0.05)+'s">'+
-    '<div class="checkbox '+(t.completed?'checked':'')+'" onclick="toggleTask(\''+t.id+'\')"></div>'+
+  return '<div class="task-item '+(t.completed?'completed':'')+'" data-id="'+escAttr(t.id)+'" style="animation-delay:'+((idx||0)*0.05)+'s">'+
+    '<div class="checkbox '+(t.completed?'checked':'')+'" onclick="toggleTask(\''+escJs(t.id)+'\')"></div>'+
     '<div class="task-content"><div class="task-name">'+esc(t.name)+'</div><div class="task-meta">'+meta.join('')+'</div></div>'+
     '<div class="task-actions">'+
-      '<button class="task-btn '+(isTimerActive?'timer-active':'')+'" onclick="startTaskTimer(\''+t.id+'\')" title="计时">⏱</button>'+
-      '<button class="task-btn" onclick="deleteTask(\''+t.id+'\')">×</button>'+
+      '<button class="task-btn '+(isTimerActive?'timer-active':'')+'" onclick="startTaskTimer(\''+escJs(t.id)+'\')" title="计时">⏱</button>'+
+      '<button class="task-btn" onclick="deleteTask(\''+escJs(t.id)+'\')">×</button>'+
     '</div></div>';
 }
 function renderHabitCard(h,s,idx){
   const checked=isChecked(h.id,s),streak=getStreak(h.id);
-  return '<div class="habit-card '+(checked?'checked':'')+'" data-id="'+h.id+'" style="animation-delay:'+((idx||0)*0.05)+'s" onclick="toggleHabit(\''+h.id+'\')">'+
-    '<button class="habit-delete-btn" onclick="event.stopPropagation();deleteHabit(\''+h.id+'\')">×</button>'+
-    '<div class="habit-icon">'+h.icon+'</div>'+
+  return '<div class="habit-card '+(checked?'checked':'')+'" data-id="'+escAttr(h.id)+'" style="animation-delay:'+((idx||0)*0.05)+'s" onclick="toggleHabit(\''+escJs(h.id)+'\')">'+
+    '<button class="habit-delete-btn" onclick="event.stopPropagation();deleteHabit(\''+escJs(h.id)+'\')">×</button>'+
+    '<div class="habit-icon">'+esc(h.icon)+'</div>'+
     '<div class="habit-name">'+esc(h.name)+'</div>'+
     '<div class="habit-streak '+(streak>=7?'fire':'')+'">'+(streak>0?'🔥'+streak+'天':'开始打卡')+'</div>'+
-    (h.reminderTime?'<div style="font-size:9px;color:var(--text-light);margin-top:2px">🔔'+h.reminderTime+'</div>':'')+
+    (h.reminderTime?'<div style="font-size:9px;color:var(--text-light);margin-top:2px">🔔'+esc(h.reminderTime)+'</div>':'')+
   '</div>';
 }
 function renderTasks(){
@@ -2667,7 +2729,7 @@ function saveEditingHabitAsTemplate(){
   saveData(appData);showToast('📋 已保存为模板');playClickSound();
 }
 
-function renderEmojiPicker(){document.getElementById('emojiPicker').innerHTML=EMOJIS.map(e=>'<div class="emoji-option '+(e===selectedEmoji?'selected':'')+'" onclick="selectEmoji(\''+e+'\',this)">'+e+'</div>').join('');}
+function renderEmojiPicker(){document.getElementById('emojiPicker').innerHTML=EMOJIS.map(e=>'<div class="emoji-option '+(e===selectedEmoji?'selected':'')+'" onclick="selectEmoji(\''+escJs(e)+'\',this)">'+e+'</div>').join('');}
 function selectEmoji(e,el){selectedEmoji=e;document.querySelectorAll('#emojiPicker .emoji-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
 function selectPriority(el){selectedPriority=el.dataset.priority;document.querySelectorAll('.priority-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');playClickSound();}
 function closeModal(id){
@@ -2759,7 +2821,7 @@ window.addEventListener('error',function(e){
   try{
     const el=document.createElement('div');
     el.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);color:white;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center';
-    el.innerHTML='<div style="font-size:48px;margin-bottom:16px">⚠️</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">应用遇到错误</div><div style="font-size:14px;color:#ccc;margin-bottom:20px;max-width:300px;word-break:break-all">'+(e.message||'未知错误')+'</div><button onclick="location.reload()" style="background:#667eea;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:14px;cursor:pointer">刷新页面</button><button onclick="this.parentElement.remove()" style="background:none;color:#999;border:1px solid #666;padding:8px 16px;border-radius:8px;font-size:12px;cursor:pointer;margin-top:8px">关闭</button>';
+    el.innerHTML='<div style="font-size:48px;margin-bottom:16px">⚠️</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">应用遇到错误</div><div style="font-size:14px;color:#ccc;margin-bottom:20px;max-width:300px;word-break:break-all">'+(esc(e.message||'未知错误'))+'</div><button onclick="location.reload()" style="background:#667eea;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:14px;cursor:pointer">刷新页面</button><button onclick="this.parentElement.remove()" style="background:none;color:#999;border:1px solid #666;padding:8px 16px;border-radius:8px;font-size:12px;cursor:pointer;margin-top:8px">关闭</button>';
     document.body.appendChild(el);
   }catch(err){}
 });
