@@ -1154,6 +1154,7 @@ function openTemplateEditor(type,id){
   document.querySelectorAll('.tpl-field').forEach(f=>f.style.display='none');
   document.querySelectorAll('.tpl-'+templateModalType).forEach(f=>f.style.display='flex');
   document.getElementById('templateEditorTitle').textContent=(t?'编辑':'新建')+({task:'任务',habit:'习惯',plan:'计划'}[templateModalType])+'模板';
+  document.getElementById('tplCloneBtn').style.display=id?'inline-flex':'none';
   document.getElementById('templateEditorModal').classList.add('show');
   playClickSound();
 }
@@ -1186,6 +1187,55 @@ function saveTemplate(){
     showToast('✅ 模板已创建');
   }
   saveData(appData);closeModal('templateEditorModal');renderTemplateList();playClickSound();
+}
+function switchTplType(type,btn){
+  templateModalType=type;
+  document.querySelectorAll('.tpl-type-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.querySelectorAll('.tpl-field').forEach(f=>f.style.display='none');
+  document.querySelectorAll('.tpl-'+type).forEach(f=>f.style.display='flex');
+  document.getElementById('templateEditorTitle').textContent=(editingTemplateId?'编辑':'新建')+({task:'任务',habit:'习惯',plan:'计划'}[type])+'模板';
+  updateTplPreview();
+  playClickSound();
+}
+function updateTplPreview(){
+  const card=document.getElementById('tplPreviewCard');
+  if(!card)return;
+  const name=document.getElementById('tplName').value.trim();
+  const category=document.getElementById('tplCategory').value.trim()||'其他';
+  const icon=document.getElementById('tplIcon').value.trim()||(templateModalType==='task'?'📝':templateModalType==='habit'?'🌱':'🎯');
+  const meta=[];
+  if(templateModalType==='task'){
+    const pri=document.getElementById('tplPriority').value;
+    if(pri)meta.push({high:'🔴高',mid:'🟡中',low:'🟢低'}[pri]);
+    const dur=document.getElementById('tplDuration').value;
+    if(dur)meta.push('⏱'+dur+'分');
+  }else if(templateModalType==='plan'){
+    const tg=document.getElementById('tplTarget').value;
+    if(tg)meta.push('🎯'+tg+'次');
+    const pomo=document.getElementById('tplPomoTarget').value;
+    if(pomo)meta.push('🍅'+pomo);
+  }
+  const rem=document.getElementById('tplReminder').value;
+  if(rem)meta.push('🔔'+rem);
+  card.innerHTML='<div class="template-card">'+
+    '<div class="template-icon">'+icon+'</div>'+
+    '<div class="template-info">'+
+      '<div class="template-name">'+esc(name||'模板名称')+'</div>'+
+      '<div class="template-meta">'+(category?'<span class="template-cat-tag">'+esc(category)+'</span>':'')+meta.join(' ')+'</div>'+
+    '</div>'+
+  '</div>';
+}
+function cloneTemplate(){
+  const t=appData.templates.find(x=>x.id===editingTemplateId);
+  if(!t){showToast('❌ 模板不存在');return;}
+  const copy={...t,id:gid(),name:t.name+' 副本',createdAt:Date.now()};
+  appData.templates.push(copy);
+  saveData(appData);
+  showToast('📋 已克隆模板');
+  playClickSound();
+  closeModal('templateEditorModal');
+  openTemplatePicker(templateModalType);
 }
 function deleteTemplate(id){
   if(!confirm('确定删除这个模板吗？'))return;
